@@ -1,143 +1,91 @@
-/// شاشة قائمة الطلاب
+/// شاشة قائمة الطلاب — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../services/database/local_database.dart';
 
-class StudentListScreen extends StatefulWidget {
+class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
 
   @override
-  State<StudentListScreen> createState() => _StudentListScreenState();
+  ConsumerState<StudentListScreen> createState() => _StudentListScreenState();
 }
 
-class _StudentListScreenState extends State<StudentListScreen> {
-  bool _isLoading = true;
+class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   String _searchQuery = '';
-  String? _filterSectionId = 'all';
-  
-  // بيانات تجريبية
-  List<Map<String, dynamic>> _students = [];
-  
-  final List<Map<String, dynamic>> _sections = [
-    {'id': '1', 'name': 'شعبة أ'},
-    {'id': '2', 'name': 'شعبة ب'},
-    {'id': '3', 'name': 'شعبة ج'},
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStudents();
-  }
-
-  Future<void> _loadStudents() async {
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (!mounted) return;
-    
-    setState(() {
-      _students = List.generate(50, (index) => {
-        'id': '${index + 1}',
-        'studentId': 'STU${(index + 1).toString().padLeft(4, '0')}',
-        'name': 'طالب ${index + 1}',
-        'sectionId': '${(index % 3) + 1}',
-        'sectionName': 'شعبة ${['أ', 'ب', 'ج'][index % 3]}',
-        'phone': '05${12345678 + index}',
-      });
-      _isLoading = false;
-    });
-  }
-
-  List<Map<String, dynamic>> get _filteredStudents {
-    var result = _students;
-    
-    if (_searchQuery.isNotEmpty) {
-      result = result.where((student) {
-        final name = student['name']?.toString().toLowerCase() ?? '';
-        final studentId = student['studentId']?.toString() ?? '';
-        return name.contains(_searchQuery.toLowerCase()) || 
-               studentId.contains(_searchQuery.toLowerCase());
-      }).toList();
-    }
-    
-    if (_filterSectionId != null && _filterSectionId != 'all') {
-      result = result.where((s) => s['sectionId'] == _filterSectionId).toList();
-    }
-    
-    return result;
-  }
+  String? _filterSectionId;
 
   @override
   Widget build(BuildContext context) {
+    final studentsAsync = ref.watch(studentListProvider);
+    final sectionsAsync = ref.watch(sectionListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('قائمة الطلاب'),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list_outlined),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.import_export_outlined),
-            onPressed: () {},
+            onPressed: () {
+              _showFilterDialog(sectionsAsync);
+            },
           ),
         ],
       ),
       body: Column(
         children: [
-          // شريط البحث والتصفية
+          // شريط البحث
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    decoration: InputDecoration(
-                      hintText: 'بحث...',
-                      prefixIcon: const Icon(Icons.search_outlined),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchQuery = ''))
-                          : null,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                DropdownButton<String>(
-                  value: _filterSectionId,
-                  hint: const Text('الكل'),
-                  items: [
-                    const DropdownMenuItem(value: 'all', child: Text('الكل')),
-                    ..._sections.map((s) => DropdownMenuItem(
-                      value: s['id'] as String,
-                      child: Text(s['name'] as String),
-                    )),
-                  ],
-                  onChanged: (value) => setState(() => _filterSectionId = value),
-                ),
-              ],
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'بحث بالاسم أو الرقم الجامعي...',
+                prefixIcon: const Icon(Icons.search_outlined),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+              ),
             ),
           ),
 
+          // قائمة الطلاب
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredStudents.isEmpty
-                    ? Center(child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text('لا يوجد طلاب', style: TextStyle(color: Colors.grey[600])),
-                        ],
-                      ))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filteredStudents.length,
-                        itemBuilder: (context, index) =>
-                            _StudentCard(student: _filteredStudents[index]),
-                      ),
+            child: studentsAsync.when(
+              data: (students) {
+                final filtered = _filterStudents(students);
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text('لا يوجد طلاب', style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) =>
+                      _StudentCard(student: filtered[index]),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ: $e')),
+            ),
           ),
         ],
       ),
@@ -148,15 +96,64 @@ class _StudentListScreenState extends State<StudentListScreen> {
       ),
     );
   }
+
+  List<StudentEntity> _filterStudents(List<StudentEntity> students) {
+    var result = students;
+
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((student) {
+        final name = student.name.toLowerCase();
+        final studentId = student.studentId.toLowerCase();
+        return name.contains(_searchQuery.toLowerCase()) ||
+            studentId.contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+
+    if (_filterSectionId != null) {
+      result = result.where((s) => s.sectionId == _filterSectionId).toList();
+    }
+
+    return result;
+  }
+
+  void _showFilterDialog(AsyncValue<List<Section>> sectionsAsync) {
+    sectionsAsync.whenData((sections) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('تصفية بالشعبة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('الكل'),
+                onTap: () {
+                  setState(() => _filterSectionId = null);
+                  Navigator.pop(ctx);
+                },
+              ),
+              ...sections.map((section) => ListTile(
+                title: Text(section.name),
+                onTap: () {
+                  setState(() => _filterSectionId = section.id);
+                  Navigator.pop(ctx);
+                },
+              )),
+            ],
+          ),
+        ),
+      );
+    });
+  }
 }
 
-class _StudentCard extends StatelessWidget {
-  final Map<String, dynamic> student;
+class _StudentCard extends ConsumerWidget {
+  final StudentEntity student;
 
   const _StudentCard({required this.student});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -165,23 +162,22 @@ class _StudentCard extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
           child: Text(
-            (student['name'] as String).substring(0, 1),
+            student.name.substring(0, 1),
             style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
           ),
         ),
-        title: Text(student['name'] ?? ''),
+        title: Text(student.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${student['studentId']} • ${student['sectionName']}'),
-            if (student['phone'] != null)
-              Text(student['phone'].toString(), style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text('${student.studentId} • ${student.sectionName ?? student.sectionId ?? ''}'),
+            if (student.phone != null)
+              Text(student.phone!, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           ],
         ),
         trailing: PopupMenuButton<String>(
-          onSelected: (value) => _handleAction(context, value),
+          onSelected: (value) => _handleAction(context, ref, value),
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, size: 18), SizedBox(width: 8), Text('عرض')])),
             const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('تعديل')])),
             const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text('حذف', style: TextStyle(color: Colors.red))])),
           ],
@@ -190,30 +186,39 @@ class _StudentCard extends StatelessWidget {
     );
   }
 
-  void _handleAction(BuildContext context, String action) {
+  void _handleAction(BuildContext context, WidgetRef ref, String action) {
     switch (action) {
-      case 'view':
-        context.push('/student/${student['id']}');
-        break;
       case 'edit':
-        context.push('/student/${student['id']}');
+        context.push('/students/student/edit/${student.id}');
         break;
       case 'delete':
-        _showDeleteConfirmation(context);
+        _showDeleteConfirmation(context, ref);
         break;
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context) {
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('حذف الطالب'),
-        content: const Text('هل أنت متأكد من حذف هذا الطالب؟'),
+        content: Text('هل أنت متأكد من حذف الطالب "${student.name}"؟'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(deleteStudentUseCaseProvider)(student.id);
+                ref.invalidate(studentListProvider);
+                ref.invalidate(studentCountProvider);
+                ref.invalidate(dashboardStatsProvider);
+                UiUtils.showSnackBar(context, 'تم حذف الطالب بنجاح');
+              } catch (e) {
+                UiUtils.showSnackBar(context, 'خطأ: $e',
+                    backgroundColor: Theme.of(context).colorScheme.error);
+              }
+            },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف'),
           ),

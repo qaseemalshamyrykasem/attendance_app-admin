@@ -1,4 +1,5 @@
-/// نقطة الدخول الرئيسية للتطبيق
+/// نقطة الدخول الرئيسية للتطبيق — الإصدار المحسن
+/// تم إصلاح: ربط themeModeProvider، إزالة hardcoded theme
 library;
 
 import 'package:flutter/material.dart';
@@ -44,86 +45,36 @@ void main() async {
   final database = AppDatabase();
 
   runApp(
-    AttendanceAdminApp(
-      storageService: storageService,
-      notificationService: notificationService,
-      database: database,
-    ),
-  );
-}
-
-/// التطبيق الرئيسي - Attendance Admin
-class AttendanceAdminApp extends StatelessWidget {
-  final StorageService storageService;
-  final NotificationService notificationService;
-  final AppDatabase database;
-
-  const AttendanceAdminApp({
-    super.key,
-    required this.storageService,
-    required this.notificationService,
-    required this.database,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ProviderScope(
+    ProviderScope(
       overrides: [
         storageServiceProvider.overrideWithValue(storageService),
         notificationServiceProvider.overrideWithValue(notificationService),
         databaseProvider.overrideWithValue(database),
       ],
-      child: const _AttendanceAppState(),
-    );
-  }
+      child: const AttendanceAdminApp(),
+    ),
+  );
 }
 
-class _AttendanceAppState extends ConsumerStatefulWidget {
-  const _AttendanceAppState();
+/// التطبيق الرئيسي — يستخدم Riverpod لربط ThemeMode
+class AttendanceAdminApp extends ConsumerWidget {
+  const AttendanceAdminApp({super.key});
 
   @override
-  ConsumerState<_AttendanceAppState> createState() => _AttendanceAppStateState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ربط ThemeMode مع provider — تغييرات الثيم تُطبق فوراً
+    final themeMode = ref.watch(themeModeProvider);
 
-class _AttendanceAppStateState extends ConsumerState<_AttendanceAppState> {
-  late GoRouter _router;
-  ThemeMode _themeMode = ThemeMode.system;
-
-  @override
-  void initState() {
-    super.initState();
-    _initRouter();
-    _loadThemeMode();
-  }
-
-  void _initRouter() {
-    _router = AppRouter.createRouter();
-  }
-
-  Future<void> _loadThemeMode() async {
-    // تحميل وضع الثيم من التخزين المحلي
-    final storageService = ref.read(storageServiceProvider);
-    final isDark = storageService.getIsDarkMode();
-    
-    if (mounted) {
-      setState(() {
-        _themeMode = isDark == true ? ThemeMode.dark : (isDark == false ? ThemeMode.light : ThemeMode.system);
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'نظام الحضور الذكي',
       
       // تكوين Go Router
-      routerConfig: _router,
+      routerConfig: AppRouter.createRouter(),
       
-      // تكوين الثيم
+      // تكوين الثيم — يقرأ من provider
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: _themeMode,
+      themeMode: themeMode,
 
       // دعم اللغة العربية (RTL)
       locale: const Locale('ar', 'SA'),

@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 
 /// أدوات التاريخ والوقت
-class DateUtils {
-  DateUtils._();
+/// تم تغيير الاسم من DateUtils إلى AppDateUtils لتجنب التعارض مع Flutter's DateUtils
+class AppDateUtils {
+  AppDateUtils._();
 
   /// تنسيق التاريخ
   static String formatDate(DateTime date, {String pattern = 'yyyy-MM-dd'}) {

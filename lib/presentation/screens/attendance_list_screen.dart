@@ -1,78 +1,33 @@
-/// شاشة قائمة الحضور
+/// شاشة قائمة الحضور — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../domain/repositories/repositories.dart';
 
-class AttendanceListScreen extends StatefulWidget {
+class AttendanceListScreen extends ConsumerStatefulWidget {
   final String sessionId;
 
   const AttendanceListScreen({super.key, required this.sessionId});
 
   @override
-  State<AttendanceListScreen> createState() => _AttendanceListScreenState();
+  ConsumerState<AttendanceListScreen> createState() => _AttendanceListScreenState();
 }
 
-class _AttendanceListScreenState extends State<AttendanceListScreen> {
-  bool _isLoading = true;
+class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
   String _searchQuery = '';
-  
-  // بيانات تجريبية
-  List<Map<String, dynamic>> _attendanceRecords = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (!mounted) return;
-    
-    setState(() {
-      _attendanceRecords = List.generate(35, (index) {
-        late String status;
-        if (index < 28) status = 'present';
-        else if (index < 33) status = 'absent';
-        else status = 'late';
-        
-        return {
-          'id': '${index + 1}',
-          'studentId': 'STU${(index + 1).toString().padLeft(4, '0')}',
-          'name': 'طالب ${index + 1}',
-          'status': status,
-          'time': index < 28 
-              ? DateTime.now().subtract(Duration(minutes: (index + 1) * 3))
-              : null,
-        };
-      });
-      _isLoading = false;
-    });
-  }
-
-  List<Map<String, dynamic>> get _filteredRecords {
-    if (_searchQuery.isEmpty) return _attendanceRecords;
-    
-    return _attendanceRecords.where((record) {
-      final name = record['name']?.toString().toLowerCase() ?? '';
-      final studentId = record['studentId']?.toString() ?? '';
-      return name.contains(_searchQuery.toLowerCase()) || 
-             studentId.contains(_searchQuery.toLowerCase());
-    }).toList();
-  }
 
   @override
   Widget build(BuildContext context) {
+    final attendanceAsync = ref.watch(sessionAttendanceProvider(widget.sessionId));
+    final statsAsync = ref.watch(sessionAttendanceStatsProvider(widget.sessionId));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('سجل الحضور'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list_outlined),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -95,31 +50,50 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
           ),
 
           // إحصائيات
-          _buildStatsBar(),
+          statsAsync.when(
+            data: (stats) => _buildStatsBar(stats),
+            loading: () => const SizedBox.shrink(),
+            error: (e, _) => const SizedBox.shrink(),
+          ),
 
           // قائمة الحضور
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredRecords.isEmpty
-                    ? Center(child: Text('لا توجد نتائج', style: TextStyle(color: Colors.grey[600])))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filteredRecords.length,
-                        itemBuilder: (context, index) =>
-                            _AttendanceRecordItem(record: _filteredRecords[index]),
-                      ),
+            child: attendanceAsync.when(
+              data: (records) {
+                final filtered = _filterRecords(records);
+
+                if (filtered.isEmpty) {
+                  return Center(child: Text('لا توجد نتائج', style: TextStyle(color: Colors.grey[600])));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) =>
+                      _AttendanceRecordItem(record: filtered[index]),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ: $e')),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsBar() {
-    final presentCount = _attendanceRecords.where((r) => r['status'] == 'present').length;
-    final absentCount = _attendanceRecords.where((r) => r['status'] == 'absent').length;
-    final lateCount = _attendanceRecords.where((r) => r['status'] == 'late').length;
+  List<AttendanceEntity> _filterRecords(List<AttendanceEntity> records) {
+    if (_searchQuery.isEmpty) return records;
 
+    return records.where((record) {
+      final name = record.student?.name.toLowerCase() ?? '';
+      final studentId = record.studentId.toLowerCase();
+      return name.contains(_searchQuery.toLowerCase()) ||
+          studentId.contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
+  Widget _buildStatsBar(AttendanceStats stats) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -130,10 +104,10 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _StatChip(label: 'الكل', value: '${_attendanceRecords.length}', color: Colors.grey),
-          _StatChip(label: 'حاضر', value: '$presentCount', color: Colors.green),
-          _StatChip(label: 'غائب', value: '$absentCount', color: Colors.red),
-          _StatChip(label: 'متأخر', value: '$lateCount', color: Colors.orange),
+          _StatChip(label: 'الكل', value: '${stats.totalCount}', color: Colors.grey),
+          _StatChip(label: 'حاضر', value: '${stats.presentCount}', color: Colors.green),
+          _StatChip(label: 'غائب', value: '${stats.absentCount}', color: Colors.red),
+          _StatChip(label: 'متأخر', value: '${stats.lateCount}', color: Colors.orange),
         ],
       ),
     );
@@ -141,32 +115,37 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
 }
 
 class _AttendanceRecordItem extends StatelessWidget {
-  final Map<String, dynamic> record;
+  final AttendanceEntity record;
 
   const _AttendanceRecordItem({required this.record});
 
   @override
   Widget build(BuildContext context) {
-    final status = record['status'] as String;
+    final status = record.status;
     Color statusColor;
     IconData statusIcon;
     String statusText;
-    
+
     switch (status) {
       case 'present':
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
-        statusText = 'حاضر';
+        statusText = FormatUtils.statusToArabic(status);
         break;
       case 'late':
         statusColor = Colors.orange;
         statusIcon = Icons.schedule;
-        statusText = 'متأخر';
+        statusText = FormatUtils.statusToArabic(status);
         break;
       case 'absent':
         statusColor = Colors.red;
         statusIcon = Icons.cancel;
-        statusText = 'غائب';
+        statusText = FormatUtils.statusToArabic(status);
+        break;
+      case 'excused':
+        statusColor = Colors.blue;
+        statusIcon = Icons.info;
+        statusText = FormatUtils.statusToArabic(status);
         break;
       default:
         statusColor = Colors.grey;
@@ -180,11 +159,11 @@ class _AttendanceRecordItem extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: CircleAvatar(
-          backgroundColor: statusColor.withOpacity(0.1),
+          backgroundColor: statusColor.withValues(alpha: 0.1),
           child: Icon(statusIcon, color: statusColor, size: 20),
         ),
-        title: Text(record['name'] ?? ''),
-        subtitle: Text(record['studentId'] ?? ''),
+        title: Text(record.student?.name ?? record.studentId),
+        subtitle: Text(record.studentId),
         trailing: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -192,22 +171,14 @@ class _AttendanceRecordItem extends StatelessWidget {
               statusText,
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
             ),
-            if (record['time'] != null)
-              Text(
-                _formatTime(record['time']),
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-              ),
+            Text(
+              DateUtils.formatTime(record.timestamp, pattern: 'HH:mm'),
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            ),
           ],
         ),
       ),
     );
-  }
-
-  String _formatTime(dynamic time) {
-    if (time is DateTime) {
-      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    }
-    return '';
   }
 }
 

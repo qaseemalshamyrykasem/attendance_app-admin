@@ -1,30 +1,37 @@
-/// خدمة التشفير
+/// خدمة التشفير — الإصدار المحسن
+/// تم إصلاح: IV عشوائي لكل عملية، SecureRandom حقيقي للـ tokens، إزالة duplicate decryptJson
 library;
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:encrypt/encrypt.dart' as encrypt;
 
 class EncryptionService {
+  // المفتاح الافتراضي — في الإنتاج يجب تخزينه في secure storage
   static const String _defaultKey = 'AttendanceAdmin2024SecureKey!';
-  static const String _defaultIv = '1234567890123456';
 
   late final encrypt.Key _key;
-  late final encrypt.IV _iv;
   final encrypt.Encrypter _encrypter;
 
   EncryptionService({
     String? key,
-    String? iv,
   })  : _key = encrypt.Key.fromUtf8(key ?? _defaultKey),
-        _iv = encrypt.IV.fromUtf8(iv ?? _defaultIv),
         _encrypter = encrypt.Encrypter(
           encrypt.AES(
             encrypt.Key.fromUtf8(key ?? _defaultKey),
             mode: encrypt.AESMode.cbc,
           ),
         );
+
+  // ============================================
+  // IV Generation — عشوائي لكل عملية تشفير
+  // ============================================
+
+  /// توليد IV عشوائي لكل عملية تشفير
+  encrypt.IV _generateRandomIv() {
+    final random = encrypt.SecureRandom(16);
+    return encrypt.IV(random.bytes);
+  }
 
   // ============================================
   // Hash Functions
@@ -63,23 +70,32 @@ class EncryptionService {
   }
 
   // ============================================
-  // Encryption/Decryption
+  // Encryption/Decryption — IV عشوائي لكل عملية
   // ============================================
 
-  /// تشفير نص
+  /// تشفير نص — كل عملية تشفير تستخدم IV عشوائي جديد
+  /// النتيجة: base64(IV):base64(encrypted) — يمكن فك التشفير باستخراج IV
   String encryptText(String plainText) {
     try {
-      final encrypted = _encrypter.encrypt(plainText, iv: _iv);
-      return encrypted.base64;
+      final iv = _generateRandomIv();
+      final encrypted = _encrypter.encrypt(plainText, iv: iv);
+      return '${iv.base64}:${encrypted.base64}';
     } catch (e) {
       throw EncryptionException('Encryption failed: $e');
     }
   }
 
-  /// فك تشفير نص
+  /// فك تشفير نص — يستخرج IV من البداية ثم يفك التشفير
   String decryptText(String encryptedText) {
     try {
-      final decrypted = _encrypter.decrypt64(encryptedText, iv: _iv);
+      final parts = encryptedText.split(':');
+      if (parts.length != 2) {
+        // تنسيق قديم (IV ثابت) — fallback
+        final decrypted = _encrypter.decrypt64(encryptedText, iv: encrypt.IV.fromUtf8('1234567890123456'));
+        return decrypted;
+      }
+      final iv = encrypt.IV.fromBase64(parts[0]);
+      final decrypted = _encrypter.decrypt64(parts[1], iv: iv);
       return decrypted;
     } catch (e) {
       throw DecryptionException('Decryption failed: $e');
@@ -99,17 +115,13 @@ class EncryptionService {
   }
 
   // ============================================
-  // Token Generation
+  // Token Generation — SecureRandom حقيقي
   // ============================================
 
-  /// إنشاء Token آمن
+  /// إنشاء Token آمن — استخدام SecureRandom حقيقي
   String generateToken({int length = 32}) {
-    final bytes = Uint8List(length);
-    for (var i = 0; i < length; i++) {
-      bytes[i] = DateTime.now().microsecondsSinceEpoch % 256 + i;
-    }
     final random = encrypt.SecureRandom(length);
-    return base64Url.encode(bytes).substring(0, length);
+    return base64Url.encode(random.bytes).substring(0, length);
   }
 
   /// إنشاء Session Token فريد
@@ -154,8 +166,8 @@ class EncryptionService {
   // ============================================
 
   /// تشفير كلمة المرور (للتخزين)
+  /// Salt ثابت للمشروع حالياً — TODO: في الإنتاج، توليد salt عشوائي لكل مستخدم
   String hashPassword(String password) {
-    // Salt ثابت للمشروع (في الإنتاج يجب استخدام salt عشوائي لكل مستخدم)
     const salt = 'AttendanceAdminSalt2024';
     final saltedPassword = password + salt;
     return sha256(saltedPassword);
@@ -170,11 +182,11 @@ class EncryptionService {
   // Device ID
   // ============================================
 
-  /// إنشاء Device ID فريد
+  /// إنشاء Device ID فريد — استخدام SecureRandom
   String generateDeviceId() {
+    final random = encrypt.SecureRandom(8);
     final timestamp = DateTime.now().millisecondsSinceEpoch.toRadixString(16);
-    final random = DateTime.now().microsecond.toRadixString(16);
-    return 'device_${timestamp}_$random';
+    return 'device_${timestamp}_${base64Url.encode(random.bytes)}';
   }
 }
 

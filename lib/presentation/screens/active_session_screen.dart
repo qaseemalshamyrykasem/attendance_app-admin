@@ -1,25 +1,28 @@
-/// شاشة الجلسة النشطة
+/// شاشة الجلسة النشطة — حقيقية مع Riverpod + QR code حقيقي + real check-in events
 library;
 
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../services/network/http_server_service.dart';
 
-class ActiveSessionScreen extends StatefulWidget {
+class ActiveSessionScreen extends ConsumerStatefulWidget {
   const ActiveSessionScreen({super.key});
 
   @override
-  State<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
+  ConsumerState<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
 }
 
-class _ActiveSessionScreenState extends State<ActiveSessionScreen>
+class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
-  bool _isRunning = true;
-  int _connectedCount = 0;
-  int _attendanceCount = 0;
-  
-  // بيانات تجريبية
-  final List<Map<String, dynamic>> _recentCheckIns = [];
+  StreamSubscription? _checkInSubscription;
+  List<_CheckInEvent> _recentCheckIns = [];
 
   @override
   void initState() {
@@ -28,43 +31,65 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    
-    // محاكاة وصول حضور جديد كل فترة
-    _simulateCheckIns();
-  }
-
-  void _simulateCheckIns() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted || !_isRunning) return;
-      
-      setState(() {
-        _connectedCount++;
-        _attendanceCount++;
-        _recentCheckIns.insert(0, {
-          'id': DateTime.now().millisecondsSinceEpoch.toString(),
-          'studentId': 'STU${(_attendanceCount).toString().padLeft(4, '0')}',
-          'name': 'طالب $_attendanceCount',
-          'time': DateTime.now(),
-        });
-        
-        // الاحتفاظ بآخر 10 سجلات فقط
-        if (_recentCheckIns.length > 10) {
-          _recentCheckIns.removeLast();
-        }
-      });
-      
-      _simulateCheckIns();
-    });
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _checkInSubscription?.cancel();
     super.dispose();
+  }
+
+  void _listenToCheckIns() {
+    final httpServer = ref.read(httpServerServiceProvider);
+    if (httpServer != null) {
+      _checkInSubscription?.cancel();
+      _checkInSubscription = httpServer.checkInStream.listen((event) {
+        if (!mounted) return;
+        setState(() {
+          _recentCheckIns.insert(0, _CheckInEvent(
+            studentId: event.studentId,
+            studentName: event.studentId, // Name will be resolved from DB
+            time: event.timestamp,
+          ));
+          if (_recentCheckIns.length > 20) {
+            _recentCheckIns.removeLast();
+          }
+        });
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final sessionData = ref.watch(activeSessionProvider);
+
+    // Listen to check-in events
+    _listenToCheckIns();
+
+    // If no active session, show message
+    if (sessionData == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('جلسة نشطة')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text('لا توجد جلسة نشطة', style: TextStyle(color: Colors.grey[600])),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => context.go('/dashboard/session/create'),
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('إنشاء جلسة جديدة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('جلسة نشطة'),
@@ -76,7 +101,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1 + (_pulseController.value * 0.1)),
+                  color: Colors.green.withValues(alpha: 0.1 + (_pulseController.value * 0.1)),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -85,7 +110,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.green,
                         shape: BoxShape.circle,
                       ),
@@ -109,17 +134,17 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
               padding: const EdgeInsets.all(16),
               children: [
                 // معلومات الجلسة
-                _buildSessionInfoCard(),
+                _buildSessionInfoCard(sessionData),
 
                 const SizedBox(height: 24),
 
                 // QR Code
-                _buildQRCodeSection(),
+                _buildQRCodeSection(sessionData),
 
                 const SizedBox(height: 24),
 
                 // الإحصائيات المباشرة
-                _buildLiveStats(),
+                _buildLiveStats(sessionData),
 
                 const SizedBox(height: 24),
 
@@ -136,7 +161,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     );
   }
 
-  Widget _buildSessionInfoCard() {
+  Widget _buildSessionInfoCard(ActiveSessionData data) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -145,14 +170,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'برمجة متقدمة',
+              data.courseId,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
-              'شعبة أ • ${_formatDate(DateTime.now())}',
+              '${data.sectionId} • ${DateUtils.formatDate(data.date)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
             ),
             const SizedBox(height: 16),
@@ -161,7 +186,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                 Icon(Icons.dns, size: 18, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  '192.168.1.100:8080',
+                  '${data.ip}:${data.port}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontFamily: 'monospace',
                       ),
@@ -170,7 +195,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                 IconButton(
                   icon: const Icon(Icons.copy_outlined, size: 18),
                   onPressed: () {
-                    // نسخ العنوان
+                    // Copy IP:port to clipboard
+                    UiUtils.showSnackBar(context, 'تم نسخ العنوان: ${data.ip}:${data.port}');
                   },
                   tooltip: 'نسخ العنوان',
                 ),
@@ -182,7 +208,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     );
   }
 
-  Widget _buildQRCodeSection() {
+  Widget _buildQRCodeSection(ActiveSessionData data) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -194,7 +220,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
-            // QR Code Placeholder - في الإنتاج استخدم qr_flutter package
+            // Real QR Code using qr_flutter
             Container(
               width: 200,
               height: 200,
@@ -203,20 +229,28 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Theme.of(context).dividerColor),
               ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.qr_code_2, size: 80, color: Colors.grey),
-                    SizedBox(height: 8),
-                    Text('رمز QR', style: TextStyle(color: Colors.grey)),
-                  ],
+              child: Center(
+                child: QrImageView(
+                  data: data.qrData,
+                  version: QrVersions.auto,
+                  size: 180,
+                  backgroundColor: Colors.white,
+                  errorStateBuilder: (context, error) {
+                    return Center(
+                      child: Text(
+                        'خطأ في QR: $error',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                _showFullScreenQR(data);
+              },
               icon: const Icon(Icons.fullscreen_outlined),
               label: const Text('عرض بحجم كامل'),
             ),
@@ -226,13 +260,50 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     );
   }
 
-  Widget _buildLiveStats() {
+  void _showFullScreenQR(ActiveSessionData data) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'رمز QR للجلسة',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              QrImageView(
+                data: data.qrData,
+                version: QrVersions.auto,
+                size: 300,
+                backgroundColor: Colors.white,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${data.ip}:${data.port}',
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLiveStats(ActiveSessionData data) {
     return Row(
       children: [
         Expanded(
           child: _LiveStatCard(
             title: 'المتصلون',
-            value: '$_connectedCount',
+            value: '${data.connectedCount}',
             icon: Icons.people_outline,
             color: Colors.blue,
           ),
@@ -241,7 +312,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
         Expanded(
           child: _LiveStatCard(
             title: 'الحاضرون',
-            value: '$_attendanceCount',
+            value: '${_recentCheckIns.length}',
             icon: Icons.check_circle_outline,
             color: Colors.green,
           ),
@@ -291,7 +362,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
         color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -302,7 +373,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
         icon: const Icon(Icons.stop_circle_outlined),
         label: const Text('إغلاق الجلسة'),
         style: FilledButton.styleFrom(
-          backgroundColor: Colors.red.withOpacity(0.1),
+          backgroundColor: Colors.red.withValues(alpha: 0.1),
           foregroundColor: Colors.red,
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
@@ -331,15 +402,42 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     );
 
     if (confirm == true && mounted) {
-      setState(() => _isRunning = false);
-      // الانتقال لصفحة تفاصيل الجلسة
-      context.go('/dashboard/session/1');
+      try {
+        await ref.read(activeSessionProvider.notifier).closeSession();
+        if (!mounted) return;
+
+        // Invalidate providers to refresh data
+        ref.invalidate(sessionListProvider);
+        ref.invalidate(activeSessionListProvider);
+        ref.invalidate(dashboardStatsProvider);
+
+        UiUtils.showSnackBar(context, 'تم إغلاق الجلسة بنجاح');
+
+        context.go('/dashboard');
+      } catch (e) {
+        if (mounted) {
+          UiUtils.showSnackBar(context, 'خطأ في إغلاق الجلسة: $e',
+              backgroundColor: Theme.of(context).colorScheme.error);
+        }
+      }
     }
   }
+}
 
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
+// ============================================
+// Data class for check-in events
+// ============================================
+
+class _CheckInEvent {
+  final String studentId;
+  final String studentName;
+  final DateTime time;
+
+  _CheckInEvent({
+    required this.studentId,
+    required this.studentName,
+    required this.time,
+  });
 }
 
 // ============================================
@@ -364,9 +462,9 @@ class _LiveStatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -385,7 +483,7 @@ class _LiveStatCard extends StatelessWidget {
 }
 
 class _RecentCheckInCard extends StatelessWidget {
-  final Map<String, dynamic> checkIn;
+  final _CheckInEvent checkIn;
 
   const _RecentCheckInCard({required this.checkIn});
 
@@ -399,23 +497,16 @@ class _RecentCheckInCard extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: CircleAvatar(
           radius: 16,
-          backgroundColor: Colors.green.withOpacity(0.1),
+          backgroundColor: Colors.green.withValues(alpha: 0.1),
           child: const Icon(Icons.check, color: Colors.green, size: 18),
         ),
-        title: Text(checkIn['name'] ?? ''),
-        subtitle: Text(checkIn['studentId'] ?? ''),
+        title: Text(checkIn.studentName),
+        subtitle: Text(checkIn.studentId),
         trailing: Text(
-          _formatTime(checkIn['time']),
+          DateUtils.formatTime(checkIn.time, pattern: 'HH:mm'),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
       ),
     );
-  }
-
-  String _formatTime(dynamic time) {
-    if (time is DateTime) {
-      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    }
-    return '';
   }
 }

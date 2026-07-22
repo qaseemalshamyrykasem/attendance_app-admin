@@ -1,27 +1,30 @@
-/// شاشة البداية (Splash Screen)
+/// شاشة البداية (Splash Screen) — حقيقية مع Riverpod
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/constants/app_constants.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
     super.initState();
     _initAnimations();
-    _navigateToNext();
   }
 
   void _initAnimations() {
@@ -35,20 +38,10 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-          parent: _animationController, curve: Curves.elasticOut),
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
 
     _animationController.forward();
-  }
-
-  Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
-
-    if (!mounted) return;
-
-    // التحقق من أول تشغيل أو الانتقال لتسجيل الدخول
-    context.go('/login');
   }
 
   @override
@@ -57,8 +50,36 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  void _navigateBasedOnAuth() {
+    if (_hasNavigated || !mounted) return;
+    _hasNavigated = true;
+
+    final authState = ref.read(authStateProvider);
+
+    if (authState.isFirstLaunch) {
+      context.go('/login');
+    } else if (authState.isAuthenticated) {
+      context.go('/dashboard');
+    } else {
+      context.go('/login');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Watch auth state and navigate when ready
+    ref.listen<AuthState>(authStateProvider, (previous, next) {
+      // Wait for animation to complete before navigating
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        _navigateBasedOnAuth();
+      });
+    });
+
+    // Also try navigation after splash duration if auth state is already set
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      _navigateBasedOnAuth();
+    });
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
@@ -76,7 +97,6 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // الشعار
               Container(
                 width: 120,
                 height: 120,
@@ -99,9 +119,8 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 32),
 
-              // اسم التطبيق
               const Text(
-                'نظام الحضور الذكي',
+                AppConstants.appName,
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -112,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
               const SizedBox(height: 8),
 
               const Text(
-                'لوحة التحكم',
+                AppConstants.appSubtitle,
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white70,
@@ -120,7 +139,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 48),
 
-              // مؤشر التحميل
               SizedBox(
                 width: 40,
                 height: 40,

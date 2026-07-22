@@ -1,28 +1,64 @@
-/// شاشة الإعدادات
+/// شاشة الإعدادات — حقيقية مع Riverpod (StorageService + ThemeModeProvider)
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_utils.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isDarkMode = false;
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _autoBackupEnabled = false;
   String _serverPort = '8080';
-  String _language = 'ar';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  void _loadSettings() {
+    final storageService = ref.read(storageServiceProvider);
+    final savedPort = storageService.getServerPort();
+    if (savedPort != null) {
+      _serverPort = savedPort.toString();
+    }
+    // Notifications setting could also come from storage
+  }
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDarkMode = themeMode == ThemeMode.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('الإعدادات'),
+        actions: [
+          // تسجيل الخروج
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                ref.read(authStateProvider.notifier).logout();
+                context.go('/login');
+              } else if (value == 'change_password') {
+                _showChangePasswordDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'change_password', child: Row(children: [Icon(Icons.key, size: 20), SizedBox(width: 8), Text('تغيير كلمة المرور')])),
+              const PopupMenuItem(value: 'logout', child: Row(children: [Icon(Icons.logout, size: 20), SizedBox(width: 8), Text('تسجيل الخروج')])),
+            ],
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -34,24 +70,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 SwitchListTile(
-                  secondary: Icon(_isDarkMode ? Icons.dark_mode : Icons.light_mode),
+                  secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode),
                   title: const Text('الوضع الداكن'),
                   subtitle: const Text('تفعيل الوضع الداكن للتطبيق'),
-                  value: _isDarkMode,
-                  onChanged: (v) => setState(() => _isDarkMode = v),
+                  value: isDarkMode,
+                  onChanged: (v) {
+                    ref.read(themeModeProvider.notifier).setThemeMode(
+                      v ? ThemeMode.dark : ThemeMode.light,
+                    );
+                  },
                 ),
                 Divider(height: 1, indent: 56, endIndent: 16),
                 ListTile(
-                  leading: const Icon(Icons.language_outlined),
-                  title: const Text('اللغة'),
-                  subtitle: Text(_language == 'ar' ? 'العربية' : 'English'),
-                  trailing: DropdownButton<String>(
-                    value: _language,
-                    items: const [
-                      DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                      DropdownMenuItem(value: 'en', child: Text('English')),
-                    ],
-                    onChanged: (v) => setState(() => _language = v!),
+                  leading: const Icon(Icons.palette_outlined),
+                  title: const Text('تبديل الوضع'),
+                  subtitle: const Text('التبديل بين الوضع الفاتح والداكن'),
+                  trailing: FilledButton.tonal(
+                    onPressed: () {
+                      ref.read(themeModeProvider.notifier).toggleTheme();
+                    },
+                    child: const Text('تبديل'),
                   ),
                 ),
               ],
@@ -95,7 +133,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      onChanged: (v) => setState(() => _serverPort = v),
+                      onChanged: (v) {
+                        _serverPort = v;
+                        final port = int.tryParse(v);
+                        if (port != null) {
+                          ref.read(storageServiceProvider).setServerPort(port);
+                        }
+                      },
                     ),
                   ),
                 ),
@@ -105,7 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('الأمان'),
                   subtitle: const Text('تغيير كلمة المرور وإعدادات البصمة'),
                   trailing: const Icon(Icons.chevron_left),
-                  onTap: () {},
+                  onTap: () => _showChangePasswordDialog(),
                 ),
               ],
             ),
@@ -123,8 +167,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   secondary: const Icon(Icons.backup_outlined),
                   title: const Text('نسخ احتياطي تلقائي'),
                   subtitle: const Text('إنشاء نسخة احتياطية تلقائياً يومياً'),
-                  value: _autoBackupEnabled,
-                  onChanged: (v) => setState(() => _autoBackupEnabled = v),
+                  value: ref.watch(storageServiceProvider).getAutoBackupEnabled() ?? false,
+                  onChanged: (v) {
+                    ref.read(storageServiceProvider).setAutoBackupEnabled(v);
+                    setState(() {}); // Refresh UI
+                  },
                 ),
                 Divider(height: 1, indent: 56, endIndent: 16),
                 ListTile(
@@ -159,13 +206,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () {},
                 ),
-                Divider(height: 1, indent: 56, endIndent: 16),
-                ListTile(
-                  leading: const Icon(Icons.star_border_outlined),
-                  title: const Text('قيمنا على المتجر'),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () {},
-                ),
               ],
             ),
           ),
@@ -175,11 +215,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // معلومات الإصدار
           Center(
             child: Text(
-              'نظام الحضور الذكي v1.0.0',
+              '${AppConstants.appName} v${AppConstants.appVersion}',
               style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
           ),
-          
+
           const SizedBox(height: 32),
         ],
       ),
@@ -190,6 +230,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تغيير كلمة المرور'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'كلمة المرور الحالية',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'كلمة المرور الجديدة',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'تأكيد كلمة المرور الجديدة',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () async {
+              if (newPasswordController.text != confirmPasswordController.text) {
+                UiUtils.showSnackBar(context, 'كلمة المرور غير متطابقة',
+                    backgroundColor: Theme.of(context).colorScheme.error);
+                return;
+              }
+
+              final success = await ref.read(authStateProvider.notifier).changePassword(
+                oldPasswordController.text,
+                newPasswordController.text,
+              );
+
+              Navigator.pop(ctx);
+
+              if (success) {
+                UiUtils.showSnackBar(context, 'تم تغيير كلمة المرور بنجاح');
+              } else {
+                UiUtils.showSnackBar(context, 'كلمة المرور الحالية غير صحيحة',
+                    backgroundColor: Theme.of(context).colorScheme.error);
+              }
+            },
+            child: const Text('تغيير'),
+          ),
+        ],
+      ),
     );
   }
 }

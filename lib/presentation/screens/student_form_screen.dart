@@ -1,75 +1,63 @@
-/// شاشة إضافة/تعديل طالب
+/// شاشة إضافة/تعديل طالب — حقيقية مع Riverpod + use cases
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../services/database/local_database.dart';
 
-class StudentFormScreen extends StatefulWidget {
+class StudentFormScreen extends ConsumerStatefulWidget {
   final String? studentId;
 
   const StudentFormScreen({super.key, this.studentId});
 
   @override
-  State<StudentFormScreen> createState() => _StudentFormScreenState();
+  ConsumerState<StudentFormScreen> createState() => _StudentFormScreenState();
 }
 
-class _StudentFormScreenState extends State<StudentFormScreen> {
+class _StudentFormScreenState extends ConsumerState<StudentFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _studentIdController = TextEditingController();
   final _phoneController = TextEditingController();
-  
+
   String? _selectedDepartmentId;
   String? _selectedSectionId;
   int? _selectedLevel;
-  
+
   bool _isLoading = false;
   bool _isEditing = false;
-
-  // بيانات تجريبية
-  final List<Map<String, dynamic>> _departments = [
-    {'id': '1', 'name': 'قسم الحاسب'},
-    {'id': '2', 'name': 'قسم هندسة البرمجيات'},
-    {'id': '3', 'name': 'قسم الشبكات'},
-  ];
-
-  final List<Map<String, dynamic>> _sections = [
-    {'id': '1', 'name': 'شعبة أ'},
-    {'id': '2', 'name': 'شعبة ب'},
-    {'id': '3', 'name': 'شعبة ج'},
-    {'id': '4', 'name': 'شعبة د'},
-  ];
-
-  final List<Map<String, dynamic>> _levels = [
-    {'value': 1, 'name': 'المستوى الأول'},
-    {'value': 2, 'name': 'المستوى الثاني'},
-    {'value': 3, 'name': 'المستوى الثالث'},
-    {'value': 4, 'name': 'المستوى الرابع'},
-  ];
+  StudentEntity? _existingStudent;
 
   @override
   void initState() {
     super.initState();
     _isEditing = widget.studentId != null;
-    
+
     if (_isEditing) {
       _loadStudentData();
     }
   }
 
   Future<void> _loadStudentData() async {
-    // محاكاة تحميل بيانات الطالب للتعديل
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (!mounted) return;
-    
-    setState(() {
-      _nameController.text = 'طالب موجود';
-      _studentIdController.text = widget.studentId ?? '';
-      _phoneController.text = '0501234567';
-      _selectedDepartmentId = '1';
-      _selectedSectionId = '1';
-      _selectedLevel = 2;
+    // Load existing student data from the student list provider
+    final studentsAsync = ref.read(studentListProvider);
+    studentsAsync.whenData((students) {
+      final student = students.where((s) => s.id == widget.studentId).firstOrNull;
+      if (student != null) {
+        setState(() {
+          _existingStudent = student;
+          _nameController.text = student.name;
+          _studentIdController.text = student.studentId;
+          _phoneController.text = student.phone ?? '';
+          _selectedDepartmentId = student.departmentId;
+          _selectedSectionId = student.sectionId;
+          _selectedLevel = student.level;
+        });
+      }
     });
   }
 
@@ -83,6 +71,9 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final departmentsAsync = ref.watch(departmentListProvider);
+    final sectionsAsync = ref.watch(sectionListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'تعديل بيانات طالب' : 'إضافة طالب جديد'),
@@ -158,22 +149,26 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
             const SizedBox(height: 16),
 
             // القسم
-            DropdownButtonFormField<String>(
-              value: _selectedDepartmentId,
-              decoration: const InputDecoration(
-                labelText: 'القسم',
-                prefixIcon: Icon(Icons.business_outlined),
+            departmentsAsync.when(
+              data: (departments) => DropdownButtonFormField<String>(
+                value: _selectedDepartmentId,
+                decoration: const InputDecoration(
+                  labelText: 'القسم',
+                  prefixIcon: Icon(Icons.business_outlined),
+                ),
+                items: departments.map((dept) => DropdownMenuItem(
+                  value: dept.id,
+                  child: Text(dept.name),
+                )).toList(),
+                onChanged: (value) => setState(() => _selectedDepartmentId = value),
               ),
-              items: _departments.map((dept) => DropdownMenuItem(
-                value: dept['id'] as String,
-                child: Text(dept['name'] as String),
-              )).toList(),
-              onChanged: (value) => setState(() => _selectedDepartmentId = value),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text('خطأ في تحميل الأقسام'),
             ),
 
             const SizedBox(height: 16),
 
-            // المستوى والشعبة في صف واحد
+            // المستوى والشعبة
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -185,27 +180,33 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
                       prefixIcon: Icon(Icons.layers_outlined),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    items: _levels.map((level) => DropdownMenuItem(
-                      value: level['value'] as int,
-                      child: Text(level['name'] as String),
-                    )).toList(),
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('المستوى الأول')),
+                      DropdownMenuItem(value: 2, child: Text('المستوى الثاني')),
+                      DropdownMenuItem(value: 3, child: Text('المستوى الثالث')),
+                      DropdownMenuItem(value: 4, child: Text('المستوى الرابع')),
+                    ],
                     onChanged: (value) => setState(() => _selectedLevel = value),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedSectionId,
-                    decoration: const InputDecoration(
-                      labelText: 'الشعبة',
-                      prefixIcon: Icon(Icons.group_outlined),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  child: sectionsAsync.when(
+                    data: (sections) => DropdownButtonFormField<String>(
+                      value: _selectedSectionId,
+                      decoration: const InputDecoration(
+                        labelText: 'الشعبة',
+                        prefixIcon: Icon(Icons.group_outlined),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      items: sections.map((section) => DropdownMenuItem(
+                        value: section.id,
+                        child: Text(section.name),
+                      )).toList(),
+                      onChanged: (value) => setState(() => _selectedSectionId = value),
                     ),
-                    items: _sections.map((section) => DropdownMenuItem(
-                      value: section['id'] as String,
-                      child: Text(section['name'] as String),
-                    )).toList(),
-                    onChanged: (value) => setState(() => _selectedSectionId = value),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Text('خطأ'),
                   ),
                 ),
               ],
@@ -294,20 +295,36 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 1));
+      final student = StudentEntity(
+        id: _isEditing ? _existingStudent!.id : DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text.trim(),
+        studentId: _studentIdController.text.trim(),
+        departmentId: _selectedDepartmentId,
+        sectionId: _selectedSectionId,
+        level: _selectedLevel,
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      );
+
+      if (_isEditing) {
+        await ref.read(updateStudentUseCaseProvider)(student);
+      } else {
+        await ref.read(addStudentUseCaseProvider)(student);
+      }
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_isEditing ? 'تم تحديث البيانات بنجاح' : 'تمت إضافة الطالب بنجاح')),
-      );
-      
+      // Invalidate the student list provider to refresh data
+      ref.invalidate(studentListProvider);
+      ref.invalidate(studentCountProvider);
+      ref.invalidate(dashboardStatsProvider);
+
+      UiUtils.showSnackBar(context, _isEditing ? 'تم تحديث البيانات بنجاح' : 'تمت إضافة الطالب بنجاح');
+
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e'), backgroundColor: Theme.of(context).colorScheme.error),
-      );
+      UiUtils.showSnackBar(context, 'خطأ: $e',
+          backgroundColor: Theme.of(context).colorScheme.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -322,9 +339,22 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              Navigator.pop(context);
+              try {
+                await ref.read(deleteStudentUseCaseProvider)(_existingStudent!.id);
+                if (!mounted) return;
+                ref.invalidate(studentListProvider);
+                ref.invalidate(studentCountProvider);
+                ref.invalidate(dashboardStatsProvider);
+                UiUtils.showSnackBar(context, 'تم حذف الطالب بنجاح');
+                context.pop();
+              } catch (e) {
+                if (mounted) {
+                  UiUtils.showSnackBar(context, 'خطأ: $e',
+                      backgroundColor: Theme.of(context).colorScheme.error);
+                }
+              }
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف'),

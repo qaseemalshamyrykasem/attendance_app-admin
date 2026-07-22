@@ -1,47 +1,41 @@
-/// شاشة إنشاء جلسة جديدة
+/// شاشة إنشاء جلسة جديدة — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_utils.dart';
+import '../../services/database/local_database.dart';
 
-class SessionCreateScreen extends StatefulWidget {
+class SessionCreateScreen extends ConsumerStatefulWidget {
   const SessionCreateScreen({super.key});
 
   @override
-  State<SessionCreateScreen> createState() => _SessionCreateScreenState();
+  ConsumerState<SessionCreateScreen> createState() => _SessionCreateScreenState();
 }
 
-class _SessionCreateScreenState extends State<SessionCreateScreen> {
+class _SessionCreateScreenState extends ConsumerState<SessionCreateScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   String? _selectedCourseId;
   String? _selectedSectionId;
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _startTime = TimeOfDay.now();
-  TimeOfDay? _endTime;
   int _port = 8080;
-  bool _isLoading = false;
   bool _isCreating = false;
-
-  // بيانات تجريبية - ستُستبدل بالبيانات الحقيقية
-  final List<Map<String, dynamic>> _courses = [
-    {'id': '1', 'name': 'برمجة متقدمة', 'code': 'CS401'},
-    {'id': '2', 'name': 'قواعد بيانات', 'code': 'CS302'},
-    {'id': '3', 'name': 'ذكاء اصطناعي', 'code': 'CS405'},
-    {'id': '4', 'name': 'شبكات الحاسوب', 'code': 'CS303'},
-    {'id': '5', 'name': 'هندسة البرمجيات', 'code': 'CS402'},
-  ];
-
-  final List<Map<String, dynamic>> _sections = [
-    {'id': '1', 'name': 'شعبة أ'},
-    {'id': '2', 'name': 'شعبة ب'},
-    {'id': '3', 'name': 'شعبة ج'},
-    {'id': '4', 'name': 'شعبة د'},
-    {'id': '5', 'name': 'شعبة هـ'},
-  ];
 
   @override
   Widget build(BuildContext context) {
+    final coursesAsync = ref.watch(courseListProvider);
+    final sectionsAsync = ref.watch(sectionListProvider);
+    final storageService = ref.watch(storageServiceProvider);
+
+    // Load default port from storage
+    final savedPort = storageService.getServerPort();
+    if (savedPort != null && _port == 8080) {
+      _port = savedPort;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('إنشاء جلسة جديدة'),
@@ -52,17 +46,20 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             // اختيار المقرر
-            _buildCourseSelector(),
+            coursesAsync.when(
+              data: (courses) => _buildCourseSelector(courses),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ في تحميل المقررات: $e')),
+            ),
 
             const SizedBox(height: 16),
 
             // اختيار الشعبة
-            _buildSectionSelector(),
-
-            const SizedBox(height: 16),
-
-            // اختيار التاريخ والوقت
-            _buildDateTimeSection(),
+            sectionsAsync.when(
+              data: (sections) => _buildSectionSelector(sections),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ في تحميل الشعب: $e')),
+            ),
 
             const SizedBox(height: 16),
 
@@ -79,7 +76,7 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
     );
   }
 
-  Widget _buildCourseSelector() {
+  Widget _buildCourseSelector(List<Course> courses) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -96,10 +93,10 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
             hintText: 'اختر المقرر',
             prefixIcon: const Icon(Icons.book_outlined),
           ),
-          items: _courses.map((course) {
+          items: courses.map((course) {
             return DropdownMenuItem(
-              value: course['id'] as String,
-              child: Text('${course['name']} (${course['code']})'),
+              value: course.id,
+              child: Text('${course.name} (${course.code ?? ''})'),
             );
           }).toList(),
           validator: (value) {
@@ -116,7 +113,7 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
     );
   }
 
-  Widget _buildSectionSelector() {
+  Widget _buildSectionSelector(List<Section> sections) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -133,10 +130,10 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
             hintText: 'اختر الشعبة',
             prefixIcon: const Icon(Icons.group_outlined),
           ),
-          items: _sections.map((section) {
+          items: sections.map((section) {
             return DropdownMenuItem(
-              value: section['id'] as String,
-              child: Text(section['name'] as String),
+              value: section.id,
+              child: Text(section.name),
             );
           }).toList(),
           validator: (value) {
@@ -150,150 +147,6 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildDateTimeSection() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'التاريخ والوقت',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // التاريخ
-            InkWell(
-              onTap: _selectDate,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.date_range_outlined,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _formatDate(_selectedDate),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // وقت البدء
-            InkWell(
-              onTap: _selectStartTime,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _formatTime(_startTime),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const Spacer(),
-                    const Text('بداية الجلسة'),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // وقت النهاية (اختياري)
-            InkWell(
-              onTap: _selectEndTime,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_filled_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _endTime != null ? _formatTime(_endTime!) : 'غير محدد',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: _endTime == null
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withOpacity(0.4)
-                                : null,
-                          ),
-                    ),
-                    const Spacer(),
-                    const Text('نهاية الجلسة (اختياري)'),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -390,106 +243,43 @@ class _SessionCreateScreenState extends State<SessionCreateScreen> {
     );
   }
 
-  // ============================================
-  // Methods
-  // ============================================
-
-  Future<void> _selectDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 7)),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      locale: const Locale('ar', 'SA'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).brightness == Brightness.dark
-                ? ColorScheme.dark(primary: Colors.green)
-                : ColorScheme.light(primary: Colors.green),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (date != null) {
-      setState(() => _selectedDate = date);
-    }
-  }
-
-  Future<void> _selectStartTime() async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _startTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).brightness == Brightness.dark
-                ? ColorScheme.dark(primary: Colors.green)
-                : ColorScheme.light(primary: Colors.green),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (time != null) {
-      setState(() => _startTime = time);
-    }
-  }
-
-  Future<void> _selectEndTime() async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _endTime ?? _startTime.replacing(hour: _startTime.hour + 2),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).brightness == Brightness.dark
-                ? ColorScheme.dark(primary: Colors.green)
-                : ColorScheme.light(primary: Colors.green),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (time != null) {
-      setState(() => _endTime = time);
-    }
-  }
-
   Future<void> _createAndStartSession() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedCourseId == null || _selectedSectionId == null) {
+      UiUtils.showSnackBar(context, 'يرجى اختيار المقرر والشعبة');
+      return;
+    }
 
     setState(() => _isCreating = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 2)); // محاكاة الإنشاء
+      // Save port preference
+      await ref.read(storageServiceProvider).setServerPort(_port);
+
+      // Create and start the session via the notifier
+      final data = await ref.read(activeSessionProvider.notifier).createAndStartSession(
+        courseId: _selectedCourseId!,
+        sectionId: _selectedSectionId!,
+        customPort: _port,
+      );
 
       if (!mounted) return;
 
-      // الانتقال لشاشة الجلسة النشطة
+      // Invalidate related providers to refresh data
+      ref.invalidate(sessionListProvider);
+      ref.invalidate(activeSessionListProvider);
+      ref.invalidate(dashboardStatsProvider);
+
+      UiUtils.showSnackBar(context, 'تم إنشاء الجلسة بنجاح');
+
+      // Navigate to active session screen
       context.go('/dashboard/session/active');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في إنشاء الجلسة: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      UiUtils.showSnackBar(context, 'خطأ في إنشاء الجلسة: $e',
+          backgroundColor: Theme.of(context).colorScheme.error);
     } finally {
       if (mounted) setState(() => _isCreating = false);
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  String _formatTime(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 }

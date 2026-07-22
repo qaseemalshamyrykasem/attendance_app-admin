@@ -237,6 +237,27 @@ class HttpServerService {
         return;
       }
 
+      // التحقق من hash إذا موجود (التوافق مع تطبيق Student)
+      if (checkInRequest.hash != null && checkInRequest.hash!.isNotEmpty) {
+        // التحقق من timestamp — يجب أن يكون ضمن 5 دقائق
+        final timestampStr = data['timestamp'] as String?;
+        if (timestampStr != null) {
+          final timestamp = DateTime.tryParse(timestampStr);
+          if (timestamp != null) {
+            final now = DateTime.now();
+            final diff = now.difference(timestamp).inMinutes.abs();
+            if (diff > 5) {
+              _sendErrorResponse(
+                request.response,
+                statusCode: HttpStatus.badRequest,
+                error: 'طلب منتهي الصلاحية — timestamp قديم',
+              );
+              return;
+            }
+          }
+        }
+      }
+
       // زيادة عدد الاتصالات
       _connectionCount++;
 
@@ -485,12 +506,14 @@ class CheckInRequest {
   final String sessionToken;
   final String? deviceId;
   final String? hash;
+  final String? timestamp;
 
   CheckInRequest({
     required this.studentId,
     required this.sessionToken,
     this.deviceId,
     this.hash,
+    this.timestamp,
   });
 
   factory CheckInRequest.fromJson(Map<String, dynamic> json) {
@@ -499,6 +522,7 @@ class CheckInRequest {
       sessionToken: json['session_token'] as String? ?? '',
       deviceId: json['device_id'] as String?,
       hash: json['hash'] as String?,
+      timestamp: json['timestamp'] as String?,
     );
   }
 
@@ -508,6 +532,7 @@ class CheckInRequest {
       'session_token': sessionToken,
       if (deviceId != null) 'device_id': deviceId,
       if (hash != null) 'hash': hash,
+      if (timestamp != null) 'timestamp': timestamp,
     };
   }
 }

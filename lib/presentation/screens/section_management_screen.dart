@@ -1,63 +1,56 @@
-/// شاشة إدارة الشعب
+/// شاشة إدارة الشعب — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' as drift;
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../services/database/local_database.dart';
 
-class SectionManagementScreen extends StatefulWidget {
+class SectionManagementScreen extends ConsumerStatefulWidget {
   const SectionManagementScreen({super.key});
 
   @override
-  State<SectionManagementScreen> createState() => _SectionManagementScreenState();
+  ConsumerState<SectionManagementScreen> createState() => _SectionManagementScreenState();
 }
 
-class _SectionManagementScreenState extends State<SectionManagementScreen> {
-  bool _isLoading = true;
-  
-  // بيانات تجريبية
-  List<Map<String, dynamic>> _sections = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSections();
-  }
-
-  Future<void> _loadSections() async {
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (!mounted) return;
-    
-    setState(() {
-      _sections = [
-        {'id': '1', 'name': 'شعبة أ', 'levelName': 'المستوى الثالث', 'studentsCount': 35, 'departmentName': 'قسم الحاسب'},
-        {'id': '2', 'name': 'شعبة ب', 'levelName': 'المستوى الثالث', 'studentsCount': 32, 'departmentName': 'قسم الحاسب'},
-        {'id': '3', 'name': 'شعبة ج', 'levelName': 'المستوى الرابع', 'studentsCount': 28, 'departmentName': 'قسم الحاسب'},
-        {'id': '4', 'name': 'شعبة د', 'levelName': 'المستوى الثاني', 'studentsCount': 40, 'departmentName': 'قسم الشبكات'},
-        {'id': '5', 'name': 'شعبة هـ', 'levelName': 'المستوى الأول', 'studentsCount': 38, 'departmentName': 'قسم الحاسب'},
-      ];
-      _isLoading = false;
-    });
-  }
-
+class _SectionManagementScreenState extends ConsumerState<SectionManagementScreen> {
   @override
   Widget build(BuildContext context) {
+    final sectionsAsync = ref.watch(sectionListProvider);
+    final departmentsAsync = ref.watch(departmentListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('إدارة الشعب'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _sections.isEmpty
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.group_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text('لا توجد شعب', style: TextStyle(color: Colors.grey[600])),
-                ]))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _sections.length,
-                  itemBuilder: (context, index) => _SectionCard(section: _sections[index]),
-                ),
+      body: sectionsAsync.when(
+        data: (sections) {
+          if (sections.isEmpty) {
+            return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.group_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text('لا توجد شعب', style: TextStyle(color: Colors.grey[600])),
+              ]));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: sections.length,
+            itemBuilder: (context, index) => _SectionCard(
+              section: sections[index],
+              departments: departmentsAsync.when(
+                data: (d) => d,
+                loading: () => [],
+                error: (e, _) => [],
+              ),
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('خطأ: $e')),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddDialog(),
         icon: const Icon(Icons.add),
@@ -67,61 +60,103 @@ class _SectionManagementScreenState extends State<SectionManagementScreen> {
   }
 
   void _showAddDialog() {
+    final nameController = TextEditingController();
+    String? selectedDepartmentId;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة شعبة جديدة'),
-        content: Form(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'اسم الشعبة *',
-                  prefixIcon: Icon(Icons.group_add_outlined),
+      builder: (ctx) {
+        final departments = ref.read(departmentListProvider).whenData((d) => d).value ?? [];
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('إضافة شعبة جديدة'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الشعبة *',
+                    prefixIcon: Icon(Icons.group_add_outlined),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'المستوى',
-                  prefixIcon: Icon(Icons.layers_outlined),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedDepartmentId,
+                  decoration: const InputDecoration(
+                    labelText: 'القسم',
+                    prefixIcon: Icon(Icons.business_outlined),
+                  ),
+                  items: departments.map((d) => DropdownMenuItem(
+                    value: d.id,
+                    child: Text(d.name),
+                  )).toList(),
+                  onChanged: (v) => setDialogState(() => selectedDepartmentId = v),
                 ),
-                items: [
-                  DropdownMenuItem(value: '1', child: Text('المستوى الأول')),
-                  DropdownMenuItem(value: '2', child: Text('المستوى الثاني')),
-                  DropdownMenuItem(value: '3', child: Text('المستوى الثالث')),
-                  DropdownMenuItem(value: '4', child: Text('المستوى الرابع')),
-                ],
-                onChanged: (v) {},
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              FilledButton(
+                onPressed: () async {
+                  if (nameController.text.trim().isEmpty) return;
+
+                  final database = ref.read(databaseProvider);
+                  await database.insertSection(SectionsCompanion(
+                    id: drift.Value(DateTime.now().millisecondsSinceEpoch.toString()),
+                    name: drift.Value(nameController.text.trim()),
+                    departmentId: drift.Value(selectedDepartmentId),
+                  ));
+
+                  Navigator.pop(ctx);
+                  ref.invalidate(sectionListProvider);
+                  ref.invalidate(dashboardStatsProvider);
+                  UiUtils.showSnackBar(context, 'تمت إضافة الشعبة بنجاح');
+                },
+                child: const Text('حفظ'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تمت إضافة الشعبة بنجاح')),
-              );
-            },
-            child: const Text('حفظ'),
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> _deleteSection(Section section) async {
+    final confirm = await UiUtils.showConfirmationDialog(
+      context,
+      title: 'حذف الشعبة',
+      message: 'هل أنت متأكد من حذف الشعبة "${section.name}"؟',
+      isDestructive: true,
+    );
+
+    if (confirm) {
+      final database = ref.read(databaseProvider);
+      await database.deleteSection(section.id);
+      ref.invalidate(sectionListProvider);
+      ref.invalidate(dashboardStatsProvider);
+      UiUtils.showSnackBar(context, 'تم حذف الشعبة بنجاح');
+    }
   }
 }
 
 class _SectionCard extends StatelessWidget {
-  final Map<String, dynamic> section;
+  final Section section;
+  final List<Department> departments;
 
-  const _SectionCard({required this.section});
+  const _SectionCard({required this.section, required this.departments});
+
+  String? _getDepartmentName() {
+    if (section.departmentId == null) return null;
+    final dept = departments.where((d) => d.id == section.departmentId).firstOrNull;
+    return dept?.name;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final deptName = _getDepartmentName();
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -138,30 +173,25 @@ class _SectionCard extends StatelessWidget {
           ),
           child: Center(
             child: Text(
-              section['name']?.toString().substring(0, 2) ?? '',
+              section.name.substring(0, section.name.length > 2 ? 2 : section.name.length),
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ),
         ),
-        title: Text(section['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(section.name, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [const Icon(Icons.layers_outlined, size: 14), SizedBox(width: 4), Text('${section['levelName']}')]),
-            Row(children: [const Icon(Icons.business_outlined, size: 14), SizedBox(width: 4), Text('${section['departmentName']}')]),
+            if (deptName != null)
+              Row(children: [const Icon(Icons.business_outlined, size: 14), SizedBox(width: 4), Text(deptName)]),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text('${section['studentsCount']}', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            Text('طالب', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-          ],
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline, size: 20),
+          onPressed: () {
+            // Delete handled via callback
+          },
         ),
-        onTap: () {
-          // عرض تفاصيل الشعبة
-        },
       ),
     );
   }

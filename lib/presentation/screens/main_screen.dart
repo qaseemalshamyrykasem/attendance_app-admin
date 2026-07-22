@@ -1,10 +1,12 @@
-/// الشاشة الرئيسية مع شريط التنقل السفلي
+/// الشاشة الرئيسية مع شريط التنقل السفلي — حقيقية مع Riverpod
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainScreen({
@@ -13,32 +15,44 @@ class MainScreen extends StatefulWidget {
   });
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-
-  void _onDestinationSelected(int index) {
-    setState(() => _currentIndex = index);
-    widget.navigationShell.goBranch(index);
-  }
-
+class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return PopScope(
-      canPop: false, // منع الرجوع للخروج من التطبيق
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         // يمكن إضافة حوار تأكيد للخروج هنا
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('تأكيد الخروج'),
+            content: const Text('هل أنت متأكد من الخروج من التطبيق؟'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('خروج'),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true && mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         body: widget.navigationShell,
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: _onDestinationSelected,
+          selectedIndex: widget.navigationShell.currentIndex,
+          onDestinationSelected: (index) {
+            widget.navigationShell.goBranch(index);
+          },
           backgroundColor: colorScheme.surface,
           elevation: 8,
           destinations: const [

@@ -1,66 +1,30 @@
-/// شاشة تفاصيل الجلسة
+/// شاشة تفاصيل الجلسة — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../domain/repositories/repositories.dart';
 
-class SessionDetailScreen extends StatefulWidget {
+class SessionDetailScreen extends ConsumerStatefulWidget {
   final String sessionId;
 
   const SessionDetailScreen({super.key, required this.sessionId});
 
   @override
-  State<SessionDetailScreen> createState() => _SessionDetailScreenState();
+  ConsumerState<SessionDetailScreen> createState() => _SessionDetailScreenState();
 }
 
-class _SessionDetailScreenState extends State<SessionDetailScreen> {
-  // بيانات تجريبية
-  Map<String, dynamic>? _sessionData;
-  List<Map<String, dynamic>> _attendanceList = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSessionData();
-  }
-
-  Future<void> _loadSessionData() async {
-    // محاكاة تحميل البيانات
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (!mounted) return;
-
-    setState(() {
-      _sessionData = {
-        'id': widget.sessionId,
-        'courseName': 'برمجة متقدمة',
-        'sectionName': 'شعبة أ',
-        'date': DateTime.now(),
-        'startTime': TimeOfDay.now(),
-        'status': 'closed',
-        'ip': '192.168.1.100',
-        'port': 8080,
-        'totalStudents': 35,
-        'presentCount': 28,
-        'absentCount': 5,
-        'lateCount': 2,
-      };
-      
-      _attendanceList = List.generate(28, (index) => {
-        'id': '${index + 1}',
-        'studentId': 'STU${(index + 1).toString().padLeft(4, '0')}',
-        'name': 'طالب ${index + 1}',
-        'status': index < 2 ? 'late' : 'present',
-        'time': DateTime.now().subtract(Duration(minutes: (index + 1) * 5)),
-      });
-      
-      _isLoading = false;
-    });
-  }
-
+class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   @override
   Widget build(BuildContext context) {
+    final sessionAsync = ref.watch(sessionDetailProvider(widget.sessionId));
+    final statsAsync = ref.watch(sessionAttendanceStatsProvider(widget.sessionId));
+    final attendanceAsync = ref.watch(sessionAttendanceProvider(widget.sessionId));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('تفاصيل الجلسة'),
@@ -73,6 +37,16 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             onSelected: (value) => _handleMenuAction(value),
             itemBuilder: (context) => [
               const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, size: 20),
+                    SizedBox(width: 8),
+                    Text('تحديث'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'export_excel',
                 child: Row(
                   children: [
@@ -82,87 +56,74 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   ],
                 ),
               ),
-              const PopupMenuItem(
-                value: 'export_pdf',
-                child: Row(
-                  children: [
-                    Icon(Icons.picture_as_pdf, size: 20),
-                    SizedBox(width: 8),
-                    Text('تصدير PDF'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'print',
-                child: Row(
-                  children: [
-                    Icon(Icons.print, size: 20),
-                    SizedBox(width: 8),
-                    Text('طباعة'),
-                  ],
-                ),
-              ),
             ],
           ),
         ],
       ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
-    );
-  }
+      body: sessionAsync.when(
+        data: (session) {
+          if (session == null) {
+            return const Center(child: Text('لم يتم العثور على بيانات الجلسة'));
+          }
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(sessionDetailProvider(widget.sessionId));
+              ref.invalidate(sessionAttendanceStatsProvider(widget.sessionId));
+              ref.invalidate(sessionAttendanceProvider(widget.sessionId));
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildSessionInfoCard(session),
 
-  Widget _buildBody() {
-    if (_sessionData == null) {
-      return const Center(child: Text('لم يتم العثور على بيانات الجلسة'));
-    }
+                const SizedBox(height: 16),
 
-    return RefreshIndicator(
-      onRefresh: _loadSessionData,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // معلومات الجلسة
-          _buildSessionInfoCard(),
+                statsAsync.when(
+                  data: (stats) => _buildAttendanceStatsCard(stats),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => const SizedBox.shrink(),
+                ),
 
-          const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-          // إحصائيات الحضور
-          _buildAttendanceStatsCard(),
+                _buildAttendanceListHeader(attendanceAsync),
 
-          const SizedBox(height: 24),
+                const SizedBox(height: 12),
 
-          // قائمة الحضور
-          _buildAttendanceListHeader(),
+                attendanceAsync.when(
+                  data: (records) => Column(
+                    children: records.map((record) =>
+                        _AttendanceRecordCard(record: record)).toList(),
+                  ),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('خطأ: $e')),
+                ),
 
-          const SizedBox(height: 12),
-
-          ..._attendanceList.map((record) => _AttendanceRecordCard(record: record)),
-
-          const SizedBox(height: 80),
-        ],
+                const SizedBox(height: 80),
+              ],
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('خطأ: $e')),
       ),
     );
   }
 
-  Widget _buildSessionInfoCard() {
-    final session = _sessionData!;
-    final status = session['status'] as String;
-    Color statusColor;
-    String statusText;
-    
+  Widget _buildSessionInfoCard(SessionEntity session) {
+    final status = session.status;
+    Color statusColor = Colors.grey;
+    String statusText = FormatUtils.sessionStatusToArabic(status);
+
     switch (status) {
       case 'active':
         statusColor = Colors.green;
-        statusText = 'نشطة';
         break;
       case 'closed':
         statusColor = Colors.grey;
-        statusText = 'مغلقة';
         break;
       default:
         statusColor = Colors.orange;
-        statusText = status;
     }
 
     return Card(
@@ -177,7 +138,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    session['courseName'] ?? '',
+                    session.courseName ?? session.courseId,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -186,7 +147,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -201,24 +162,24 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${session['sectionName']} • ${_formatDate(session['date'])}',
+              '${session.sectionName ?? session.sectionId} • ${DateUtils.formatDate(session.date)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
             ),
             const Divider(height: 24),
-            _buildInfoRow(Icons.dns_outlined, 'الخادم', '${session['ip']}:${session['port']}'),
-            const SizedBox(height: 8),
-            _buildInfoRow(Icons.people_outline, 'إجمالي الطلاب', '${session['totalStudents']}'),
+            if (session.ip != null)
+              _buildInfoRow(Icons.dns_outlined, 'الخادم', '${session.ip}:${session.port ?? 8080}'),
+            _buildInfoRow(Icons.access_time_outlined, 'بدء الجلسة', DateUtils.formatTime(session.startTime, pattern: 'HH:mm')),
+            if (session.endTime != null)
+              _buildInfoRow(Icons.access_time_filled_rounded, 'نهاية الجلسة', DateUtils.formatTime(session.endTime!, pattern: 'HH:mm')),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAttendanceStatsCard() {
-    final session = _sessionData!;
-    
+  Widget _buildAttendanceStatsCard(AttendanceStats stats) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -228,7 +189,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             Expanded(
               child: _StatItem(
                 label: 'حاضر',
-                value: '${session['presentCount']}',
+                value: '${stats.presentCount}',
                 color: Colors.green,
               ),
             ),
@@ -236,7 +197,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             Expanded(
               child: _StatItem(
                 label: 'متأخر',
-                value: '${session['lateCount']}',
+                value: '${stats.lateCount}',
                 color: Colors.orange,
               ),
             ),
@@ -244,7 +205,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             Expanded(
               child: _StatItem(
                 label: 'غائب',
-                value: '${session['absentCount']}',
+                value: '${stats.absentCount}',
                 color: Colors.red,
               ),
             ),
@@ -255,23 +216,32 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 8),
-        Text('$label:', style: Theme.of(context).textTheme.bodySmall),
-        const Spacer(),
-        Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Text('$label:', style: Theme.of(context).textTheme.bodySmall),
+          const Spacer(),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+        ],
+      ),
     );
   }
 
-  Widget _buildAttendanceListHeader() {
+  Widget _buildAttendanceListHeader(AsyncValue<List<AttendanceEntity>> attendanceAsync) {
+    final count = attendanceAsync.when(
+      data: (records) => records.length,
+      loading: () => 0,
+      error: (e, _) => 0,
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'سجل الحضور (${_attendanceList.length})',
+          'سجل الحضور ($count)',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         TextButton.icon(
@@ -285,29 +255,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   void _handleMenuAction(String action) {
     switch (action) {
+      case 'refresh':
+        ref.invalidate(sessionDetailProvider(widget.sessionId));
+        ref.invalidate(sessionAttendanceStatsProvider(widget.sessionId));
+        ref.invalidate(sessionAttendanceProvider(widget.sessionId));
+        break;
       case 'export_excel':
-        _showSnackBar('جارٍ تصدير ملف Excel...');
-        break;
-      case 'export_pdf':
-        _showSnackBar('جارٍ تصدير ملف PDF...');
-        break;
-      case 'print':
-        _showSnackBar('جارٍ الطباعة...');
+        UiUtils.showSnackBar(context, 'جارٍ تصدير ملف Excel...');
         break;
     }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
-  }
-
-  String _formatDate(dynamic date) {
-    if (date is DateTime) {
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    }
-    return date.toString();
   }
 }
 
@@ -348,32 +304,33 @@ class _StatItem extends StatelessWidget {
 }
 
 class _AttendanceRecordCard extends StatelessWidget {
-  final Map<String, dynamic> record;
+  final AttendanceEntity record;
 
   const _AttendanceRecordCard({required this.record});
 
   @override
   Widget build(BuildContext context) {
-    final status = record['status'] as String;
-    Color statusColor;
-    String statusText;
-    
+    final status = record.status;
+    Color statusColor = Colors.grey;
+    String statusText = status;
+    IconData statusIcon = Icons.help;
+
     switch (status) {
       case 'present':
         statusColor = Colors.green;
-        statusText = 'حاضر';
+        statusText = FormatUtils.statusToArabic(status);
+        statusIcon = Icons.check;
         break;
       case 'late':
         statusColor = Colors.orange;
-        statusText = 'متأخر';
+        statusText = FormatUtils.statusToArabic(status);
+        statusIcon = Icons.schedule;
         break;
       case 'absent':
         statusColor = Colors.red;
-        statusText = 'غائب';
+        statusText = FormatUtils.statusToArabic(status);
+        statusIcon = Icons.close;
         break;
-      default:
-        statusColor = Colors.grey;
-        statusText = status;
     }
 
     return Card(
@@ -382,19 +339,15 @@ class _AttendanceRecordCard extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: CircleAvatar(
-          backgroundColor: statusColor.withOpacity(0.1),
-          child: Icon(
-            status == 'present' ? Icons.check : (status == 'late' ? Icons.schedule : Icons.close),
-            color: statusColor,
-            size: 18,
-          ),
+          backgroundColor: statusColor.withValues(alpha: 0.1),
+          child: Icon(statusIcon, color: statusColor, size: 18),
         ),
-        title: Text(record['name'] ?? ''),
-        subtitle: Text('${record['studentId']} • ${_formatTime(record['time'])}'),
+        title: Text(record.student?.name ?? record.studentId),
+        subtitle: Text('${record.studentId} • ${DateUtils.formatTime(record.timestamp, pattern: 'HH:mm')}'),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
+            color: statusColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -404,12 +357,5 @@ class _AttendanceRecordCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatTime(dynamic time) {
-    if (time is DateTime) {
-      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    }
-    return '';
   }
 }

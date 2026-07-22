@@ -1,56 +1,26 @@
-/// شاشة لوحة التحكم (Dashboard)
+/// شاشة لوحة التحكم (Dashboard) — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/di/providers.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../domain/repositories/repositories.dart';
+import '../../services/database/local_database.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-
-  // بيانات تجريبية - ستُستبدل بالبيانات الحقيقية من API
-  final Map<String, dynamic> _stats = {
-    'totalStudents': 156,
-    'activeSessions': 2,
-    'todayAttendance': 89,
-    'todayAbsence': 12,
-    'totalCourses': 8,
-    'totalSections': 6,
-  };
-
-  List<Map<String, dynamic>> _recentSessions = [
-    {
-      'id': '1',
-      'courseName': 'برمجة متقدمة',
-      'sectionName': 'شعبة أ',
-      'date': DateTime.now(),
-      'status': 'active',
-      'attendanceCount': 28,
-    },
-    {
-      'id': '2',
-      'courseName': 'قواعد بيانات',
-      'sectionName': 'شعبة ب',
-      'date': DateTime.now().subtract(const Duration(hours: 2)),
-      'status': 'closed',
-      'attendanceCount': 32,
-    },
-    {
-      'id': '3',
-      'courseName': 'ذكاء اصطناعي',
-      'sectionName': 'شعبة ج',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-      'status': 'closed',
-      'attendanceCount': 25,
-    },
-  ];
 
   @override
   void initState() {
@@ -70,6 +40,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final statsAsync = ref.watch(dashboardStatsProvider);
+    final sessionsAsync = ref.watch(activeSessionListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('لوحة التحكم'),
@@ -82,9 +55,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'refresh') {
-                _refreshData();
-              } else if (value == 'export') {
-                _exportData();
+                ref.invalidate(dashboardStatsProvider);
+                ref.invalidate(activeSessionListProvider);
+                ref.invalidate(sessionListProvider);
+              } else if (value == 'logout') {
+                ref.read(authStateProvider.notifier).logout();
+                context.go('/login');
               }
             },
             itemBuilder: (context) => [
@@ -99,12 +75,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const PopupMenuItem(
-                value: 'export',
+                value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.file_download_outlined, size: 20),
+                    Icon(Icons.logout, size: 20),
                     SizedBox(width: 8),
-                    Text('تصدير تقرير'),
+                    Text('تسجيل الخروج'),
                   ],
                 ),
               ),
@@ -113,12 +89,20 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refreshData,
+        onRefresh: () async {
+          ref.invalidate(dashboardStatsProvider);
+          ref.invalidate(activeSessionListProvider);
+          ref.invalidate(sessionListProvider);
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // بطاقات الإحصائيات
-            _buildStatsGrid(),
+            statsAsync.when(
+              data: (stats) => _buildStatsGrid(stats),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ في تحميل الإحصائيات: $e')),
+            ),
 
             const SizedBox(height: 24),
 
@@ -127,20 +111,23 @@ class _DashboardScreenState extends State<DashboardScreen>
 
             const SizedBox(height: 24),
 
-            // آخر الجلسات
-            _buildRecentSessionsSection(),
+            // آخر الجلسات النشطة
+            sessionsAsync.when(
+              data: (sessions) => _buildRecentSessionsSection(sessions),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ: $e')),
+            ),
 
             const SizedBox(height: 24),
 
             // إجراءات سريعة
             _buildQuickActions(),
 
-            const SizedBox(height: 80), // مساحة لـ FAB
+            const SizedBox(height: 80),
           ],
         ),
       ),
 
-      // زر عائم لإنشاء جلسة
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/dashboard/session/create'),
         icon: const Icon(Icons.add_circle_outline),
@@ -149,7 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(DashboardStats stats) {
     return GridView.count(
       crossAxisCount: 2,
       mainAxisSpacing: 12,
@@ -159,7 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       children: [
         _StatCard(
           title: 'إجمالي الطلاب',
-          value: '${_stats['totalStudents']}',
+          value: FormatUtils.formatNumber(stats.totalStudents),
           icon: Icons.people_rounded,
           color: Colors.blue,
           animation: _animationController,
@@ -167,7 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         _StatCard(
           title: 'جلسات نشطة',
-          value: '${_stats['activeSessions']}',
+          value: FormatUtils.formatNumber(stats.activeSessions),
           icon: Icons.play_circle_rounded,
           color: Colors.green,
           animation: _animationController,
@@ -175,17 +162,17 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         _StatCard(
           title: 'حضور اليوم',
-          value: '${_stats['todayAttendance']}',
+          value: FormatUtils.formatNumber(stats.todayAttendance),
           icon: Icons.check_circle_rounded,
           color: Colors.teal,
           animation: _animationController,
           delay: 200,
         ),
         _StatCard(
-          title: 'غائبون اليوم',
-          value: '${_stats['todayAbsence']}',
-          icon: Icons.cancel_rounded,
-          color: Colors.red,
+          title: 'المقررات',
+          value: FormatUtils.formatNumber(stats.totalCourses),
+          icon: Icons.book_rounded,
+          color: Colors.purple,
           animation: _animationController,
           delay: 300,
         ),
@@ -228,7 +215,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildRecentSessionsSection() {
+  Widget _buildRecentSessionsSection(List<SessionEntity> sessions) {
+    if (sessions.isEmpty) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              Icon(Icons.event_available_outlined, size: 48, color: Colors.grey[400]),
+              const SizedBox(height: 12),
+              Text('لا توجد جلسات نشطة', style: TextStyle(color: Colors.grey[600])),
+              const SizedBox(height: 8),
+              Text('أنشئ جلسة جديدة لبدء تسجيل الحضور',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'آخر الجلسات',
+              'الجلسات النشطة',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -249,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         const SizedBox(height: 12),
 
-        ..._recentSessions.map((session) => _SessionCard(session: session)),
+        ...sessions.map((session) => _SessionCard(session: session)),
       ],
     );
   }
@@ -293,7 +299,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               const SizedBox(width: 12),
               _QuickActionTile(
                 icon: Icons.assessment_outlined,
-                label: 'تقرير شهري',
+                label: 'تقرير',
                 color: Colors.teal,
                 onTap: () => context.push('/reports'),
               ),
@@ -303,15 +309,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       ],
     );
   }
-
-  Future<void> _refreshData() async {
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> _exportData() async {}
 }
 
 // ============================================
@@ -366,7 +363,7 @@ class _StatCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -386,7 +383,7 @@ class _StatCard extends StatelessWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.6),
+                          .withValues(alpha: 0.6),
                     ),
               ),
             ],
@@ -398,35 +395,41 @@ class _StatCard extends StatelessWidget {
 }
 
 class _SessionCard extends StatelessWidget {
-  final Map<String, dynamic> session;
+  final SessionEntity session;
 
   const _SessionCard({required this.session});
 
   @override
   Widget build(BuildContext context) {
-    final status = session['status'] as String;
+    final status = session.status;
     Color statusColor;
     String statusText;
-    
+
     switch (status) {
       case 'active':
         statusColor = Colors.green;
-        statusText = 'نشطة';
+        statusText = FormatUtils.sessionStatusToArabic(status);
         break;
       case 'closed':
         statusColor = Colors.grey;
-        statusText = 'مغلقة';
+        statusText = FormatUtils.sessionStatusToArabic(status);
         break;
       default:
         statusColor = Colors.orange;
-        statusText = status;
+        statusText = FormatUtils.sessionStatusToArabic(status);
     }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () => context.push('/dashboard/session/${session['id']}'),
+        onTap: () {
+          if (status == 'active') {
+            context.push('/dashboard/session/active');
+          } else {
+            context.push('/dashboard/session/${session.id}');
+          }
+        },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -436,7 +439,7 @@ class _SessionCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -450,14 +453,14 @@ class _SessionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      session['courseName'] ?? '',
+                      session.courseName ?? session.courseId,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${session['sectionName']} • ${session['attendanceCount']} حاضر',
+                      '${session.sectionName ?? session.sectionId} • ${DateUtils.formatDate(session.date)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -466,7 +469,7 @@ class _SessionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -508,9 +511,9 @@ class _QuickActionTile extends StatelessWidget {
         width: 120,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

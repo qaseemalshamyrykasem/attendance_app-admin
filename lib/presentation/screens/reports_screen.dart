@@ -1,17 +1,24 @@
-/// شاشة التقارير
+/// شاشة التقارير — حقيقية مع Riverpod (بيانات من DB)
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../core/di/providers.dart';
+import '../../core/utils/app_utils.dart';
+import '../../domain/entities/entities.dart';
+import '../../domain/repositories/repositories.dart';
+import '../../services/database/local_database.dart';
 
-class ReportsScreen extends StatefulWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProviderStateMixin {
+class _ReportsScreenState extends ConsumerState<ReportsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -56,84 +63,39 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
 // تبويب الملخص
 // ============================================
 
-class _SummaryTab extends StatelessWidget {
+class _SummaryTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(dashboardStatsProvider);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // بطاقات الإحصائيات الرئيسية
-        Row(
-          children: [
-            Expanded(child: _SummaryCard(title: 'إجمالي الطلاب', value: '156', icon: Icons.people, color: Colors.blue)),
-            const SizedBox(width: 12),
-            Expanded(child: _SummaryCard(title: 'معدل الحضور', value: '87.5%', icon: Icons.trending_up, color: Colors.green)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _SummaryCard(title: 'جلسات هذا الشهر', value: '24', icon: Icons.event, color: Colors.orange)),
-            const SizedBox(width: 12),
-            Expanded(child: _SummaryCard(title: 'المقررات النشطة', value: '8', icon: Icons.book, color: Colors.purple)),
-          ],
-        ),
-
-        const SizedBox(height: 24),
-
-        // رسم بياني للحضور الشهري
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('معدل الحضور الشهري', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 200,
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: 100,
-                      barTouchData: BarTouchData(enabled: true),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (value, meta) {
-                          const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'];
-                          if (value.toInt() < months.length) return Text(months[value.toInt()], style: const TextStyle(fontSize: 10));
-                          return Text('');
-                        })),
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      gridData: const FlGridData(show: true, drawVerticalLine: false),
-                      barGroups: [
-                        _makeBarGroup(0, 85, Colors.green),
-                        _makeBarGroup(1, 88, Colors.green),
-                        _makeBarGroup(2, 82, Colors.orange),
-                        _makeBarGroup(3, 90, Colors.green),
-                        _makeBarGroup(4, 87, Colors.green),
-                        _makeBarGroup(5, 91, Colors.green),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        statsAsync.when(
+          data: (stats) => Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _SummaryCard(title: 'إجمالي الطلاب', value: '${stats.totalStudents}', icon: Icons.people, color: Colors.blue)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _SummaryCard(title: 'جلسات نشطة', value: '${stats.activeSessions}', icon: Icons.play_circle, color: Colors.green)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _SummaryCard(title: 'حضور اليوم', value: '${stats.todayAttendance}', icon: Icons.check_circle, color: Colors.teal)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _SummaryCard(title: 'المقررات', value: '${stats.totalCourses}', icon: Icons.book, color: Colors.purple)),
+                ],
+              ),
+            ],
           ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('خطأ: $e')),
         ),
       ],
     );
-  }
-
-  BarChartGroupData _makeBarGroup(int x, double y, Color color) {
-    return BarChartGroupData(x: x, barRods: [
-      BarChartRodData(toY: y, color: color, width: 20, borderRadius: BorderRadius.circular(4)),
-    ]);
   }
 }
 
@@ -150,9 +112,9 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,35 +134,14 @@ class _SummaryCard extends StatelessWidget {
 // تبويب الحضور
 // ============================================
 
-class _AttendanceTab extends StatelessWidget {
+class _AttendanceTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionsAsync = ref.watch(sessionListProvider);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // فلاتر التاريخ
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today_outlined, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 12),
-                const Text('اختر الفترة'),
-                const Spacer(),
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.date_range, size: 18),
-                  label: const Text('هذا الشهر'),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
         // إحصائيات الحضور
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -211,14 +152,23 @@ class _AttendanceTab extends StatelessWidget {
               children: [
                 Text('إحصائيات الحضور', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _AttendanceStatItem(color: Colors.green, label: 'حاضر', count: 1365, percentage: 85),
-                    _AttendanceStatItem(color: Colors.red, label: 'غائب', count: 168, percentage: 10.5),
-                    _AttendanceStatItem(color: Colors.orange, label: 'متأخر', count: 67, percentage: 4.2),
-                    _AttendanceStatItem(color: Colors.blue, label: 'معذور', count: 5, percentage: 0.3),
-                  ],
+                sessionsAsync.when(
+                  data: (sessions) {
+                    final totalSessions = sessions.length;
+                    final activeSessions = sessions.where((s) => s.status == 'active').length;
+                    final closedSessions = sessions.where((s) => s.status == 'closed').length;
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _AttendanceStatItem(color: Colors.green, label: 'نشطة', count: activeSessions),
+                        _AttendanceStatItem(color: Colors.grey, label: 'مغلقة', count: closedSessions),
+                        _AttendanceStatItem(color: Colors.blue, label: 'إجمالي', count: totalSessions),
+                      ],
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Text('خطأ: $e'),
                 ),
               ],
             ),
@@ -227,8 +177,25 @@ class _AttendanceTab extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // قائمة أيام الحضور
-        ...List.generate(7, (index) => _DayAttendanceCard(date: DateTime.now().subtract(Duration(days: index)))),
+        // قائمة الجلسات الأخيرة
+        sessionsAsync.when(
+          data: (sessions) {
+            if (sessions.isEmpty) {
+              return Center(child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text('لا توجد جلسات', style: TextStyle(color: Colors.grey[600])),
+              ));
+            }
+
+            return Column(
+              children: sessions.take(10).map((session) => _DayAttendanceCard(
+                session: session,
+              ).build(context)).toList(),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('خطأ: $e')),
+        ),
       ],
     );
   }
@@ -238,9 +205,8 @@ class _AttendanceStatItem extends StatelessWidget {
   final Color color;
   final String label;
   final int count;
-  final double percentage;
 
-  const _AttendanceStatItem({required this.color, required this.label, required this.count, required this.percentage});
+  const _AttendanceStatItem({required this.color, required this.label, required this.count});
 
   @override
   Widget build(BuildContext context) {
@@ -250,26 +216,26 @@ class _AttendanceStatItem extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Center(child: Text('$count', style: TextStyle(fontWeight: FontWeight.bold, color: color))),
         ),
         const SizedBox(height: 6),
         Text(label, style: Theme.of(context).textTheme.bodySmall),
-        Text('$percentage%', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
       ],
     );
   }
 }
 
-class _DayAttendanceCard extends StatelessWidget {
-  final DateTime date;
+class _DayAttendanceCard extends ConsumerWidget {
+  final SessionEntity session;
 
-  const _DayAttendanceCard({required this.date});
+  const _DayAttendanceCard({required this.session});
 
   @override
-  Widget build(BuildContext context) {
-    final isToday = date.day == DateTime.now().day && date.month == DateTime.now().month;
-    
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isToday = DateUtils.isToday(session.date);
+    final statsAsync = ref.watch(sessionAttendanceStatsProvider(session.id));
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -286,17 +252,16 @@ class _DayAttendanceCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('${date.day}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isToday ? Colors.white : null)),
-              Text(_getMonthName(date.month), style: TextStyle(fontSize: 9, color: isToday ? Colors.white70 : Colors.grey[600])),
+              Text('${session.date.day}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isToday ? Colors.white : null)),
+              Text(_getMonthName(session.date.month), style: TextStyle(fontSize: 9, color: isToday ? Colors.white70 : Colors.grey[600])),
             ],
           ),
         ),
-        title: Text(isToday ? 'اليوم' : _formatDate(date)),
-        subtitle: Text('28 حاضر • 2 غائب • 1 متأخر'),
-        trailing: FilledButton.tonal(
-          onPressed: () {},
-          style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12), minimumSize: Size(0, 32)),
-          child: const Text('تفاصيل', style: TextStyle(fontSize: 12)),
+        title: Text(isToday ? 'اليوم' : DateUtils.formatDate(session.date)),
+        subtitle: statsAsync.when(
+          data: (stats) => Text('${stats.presentCount} حاضر • ${stats.absentCount} غائب • ${stats.lateCount} متأخر'),
+          loading: () => const Text('جارٍ التحميل...'),
+          error: (e, _) => Text('خطأ'),
         ),
       ),
     );
@@ -306,37 +271,66 @@ class _DayAttendanceCard extends StatelessWidget {
     const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
     return months[(month - 1) % 12];
   }
-
-  String _formatDate(DateTime date) => '${date.day} ${_getMonthName(date.month)}';
 }
 
 // ============================================
 // تبويب المقررات
 // ============================================
 
-class _CoursesTab extends StatelessWidget {
+class _CoursesTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coursesAsync = ref.watch(courseListProvider);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // بيانات تجريبية للمقررات
-        ...List.generate(5, (index) => _CourseReportCard(index: index + 1)),
+        coursesAsync.when(
+          data: (courses) {
+            if (courses.isEmpty) {
+              return Center(child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.book_outlined, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text('لا توجد مقررات', style: TextStyle(color: Colors.grey[600])),
+                  ],
+                ),
+              ));
+            }
+
+            return Column(
+              children: courses.map((course) => _CourseReportCard(
+                course: course,
+              ).build(context, ref)).toList(),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('خطأ: $e')),
+        ),
       ],
     );
   }
 }
 
-class _CourseReportCard extends StatelessWidget {
-  final int index;
+class _CourseReportCard extends ConsumerWidget {
+  final Course course;
 
-  const _CourseReportCard({required this.index});
+  const _CourseReportCard({required this.course});
 
   @override
-  Widget build(BuildContext context) {
-    final courses = ['برمجة متقدمة', 'قواعد بيانات', 'ذكاء اصطناعي', 'شبكات الحاسوب', 'هندسة البرمجيات'];
-    final attendanceRates = [92, 88, 95, 78, 89];
-    
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get session count for this course
+    final sessionsAsync = ref.watch(sessionListProvider);
+
+    final sessionCount = sessionsAsync.when(
+      data: (sessions) => sessions.where((s) => s.courseId == course.id).length,
+      loading: () => 0,
+      error: (e, _) => 0,
+    );
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -348,33 +342,15 @@ class _CourseReportCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(courses[index - 1], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('${attendanceRates[index - 1]}%', style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: attendanceRates[index - 1] >= 90 ? Colors.green : (attendanceRates[index - 1] >= 80 ? Colors.orange : Colors.red),
-                )),
+                Text(course.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text('${course.code ?? ''}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: attendanceRates[index - 1] / 100,
-                minHeight: 8,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  attendanceRates[index - 1] >= 90 ? Colors.green : (attendanceRates[index - 1] >= 80 ? Colors.orange : Colors.red),
-                ),
-              ),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _MiniStat(icon: Icons.check_circle, value: '${28 - index}', color: Colors.green),
-                _MiniStat(icon: Icons.cancel, value: '$index', color: Colors.red),
-                _MiniStat(icon: Icons.schedule, value: index > 0 ? '2' : '0', color: Colors.orange),
+                _MiniStat(icon: Icons.event_outlined, value: '$sessionCount', label: 'جلسة'),
               ],
             ),
           ],
@@ -387,12 +363,18 @@ class _CourseReportCard extends StatelessWidget {
 class _MiniStat extends StatelessWidget {
   final IconData icon;
   final String value;
-  final Color color;
+  final String label;
 
-  const _MiniStat({required this.icon, required this.value, required this.color});
+  const _MiniStat({required this.icon, required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 14, color: color), const SizedBox(width: 4), Text(value)]);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 14, color: Colors.grey[600]),
+      const SizedBox(width: 4),
+      Text(value),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+    ]);
   }
 }
