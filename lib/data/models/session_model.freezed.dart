@@ -39,12 +39,8 @@ mixin _$Session {
   int? get connectedCount => throw _privateConstructorUsedError;
   int? get attendanceCount => throw _privateConstructorUsedError;
 
-  /// Serializes this Session to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of Session
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $SessionCopyWith<Session> get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -84,8 +80,6 @@ class _$SessionCopyWithImpl<$Res, $Val extends Session>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of Session
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -221,8 +215,6 @@ class __$$SessionImplCopyWithImpl<$Res>
       _$SessionImpl _value, $Res Function(_$SessionImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Session
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -426,7 +418,7 @@ class _$SessionImpl implements _Session {
                 other.attendanceCount == attendanceCount));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -449,9 +441,7 @@ class _$SessionImpl implements _Session {
       connectedCount,
       attendanceCount);
 
-  /// Create a copy of Session
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$SessionImplCopyWith<_$SessionImpl> get copyWith =>
@@ -524,11 +514,8 @@ abstract class _Session implements Session {
   int? get connectedCount;
   @override
   int? get attendanceCount;
-
-  /// Create a copy of Session
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$SessionImplCopyWith<_$SessionImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -546,12 +533,8 @@ mixin _$CreateSessionRequest {
   DateTime? get endTime => throw _privateConstructorUsedError;
   int? get port => throw _privateConstructorUsedError;
 
-  /// Serializes this CreateSessionRequest to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of CreateSessionRequest
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $CreateSessionRequestCopyWith<CreateSessionRequest> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -582,8 +565,6 @@ class _$CreateSessionRequestCopyWithImpl<$Res,
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of CreateSessionRequest
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -648,8 +629,6 @@ class __$$CreateSessionRequestImplCopyWithImpl<$Res>
       $Res Function(_$CreateSessionRequestImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of CreateSessionRequest
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -737,14 +716,12 @@ class _$CreateSessionRequestImpl implements _CreateSessionRequest {
             (identical(other.port, port) || other.port == port));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType, courseId, sectionId, date, startTime, endTime, port);
 
-  /// Create a copy of CreateSessionRequest
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$CreateSessionRequestImplCopyWith<_$CreateSessionRequestImpl>
@@ -784,11 +761,8 @@ abstract class _CreateSessionRequest implements CreateSessionRequest {
   DateTime? get endTime;
   @override
   int? get port;
-
-  /// Create a copy of CreateSessionRequest
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$CreateSessionRequestImplCopyWith<_$CreateSessionRequestImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
@@ -812,12 +786,8 @@ mixin _$SessionInfo {
   int get connectedCount => throw _privateConstructorUsedError;
   int get attendanceCount => throw _privateConstructorUsedError;
 
-  /// Serializes this SessionInfo to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of SessionInfo
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $SessionInfoCopyWith<SessionInfo> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -853,8 +823,6 @@ class _$SessionInfoCopyWithImpl<$Res, $Val extends SessionInfo>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of SessionInfo
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -955,8 +923,6 @@ class __$$SessionInfoImplCopyWithImpl<$Res>
       _$SessionInfoImpl _value, $Res Function(_$SessionInfoImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of SessionInfo
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -1100,7 +1066,7 @@ class _$SessionInfoImpl implements _SessionInfo {
                 other.attendanceCount == attendanceCount));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -1117,9 +1083,7 @@ class _$SessionInfoImpl implements _SessionInfo {
       connectedCount,
       attendanceCount);
 
-  /// Create a copy of SessionInfo
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$SessionInfoImplCopyWith<_$SessionInfoImpl> get copyWith =>
@@ -1175,11 +1139,8 @@ abstract class _SessionInfo implements SessionInfo {
   int get connectedCount;
   @override
   int get attendanceCount;
-
-  /// Create a copy of SessionInfo
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$SessionInfoImplCopyWith<_$SessionInfoImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

@@ -29,12 +29,8 @@ mixin _$Attendance {
   String? get deviceId => throw _privateConstructorUsedError;
   String? get hash => throw _privateConstructorUsedError;
 
-  /// Serializes this Attendance to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of Attendance
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $AttendanceCopyWith<Attendance> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -68,8 +64,6 @@ class _$AttendanceCopyWithImpl<$Res, $Val extends Attendance>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of Attendance
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -118,8 +112,6 @@ class _$AttendanceCopyWithImpl<$Res, $Val extends Attendance>
     ) as $Val);
   }
 
-  /// Create a copy of Attendance
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $StudentCopyWith<$Res>? get student {
@@ -163,8 +155,6 @@ class __$$AttendanceImplCopyWithImpl<$Res>
       _$AttendanceImpl _value, $Res Function(_$AttendanceImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of Attendance
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -272,14 +262,12 @@ class _$AttendanceImpl implements _Attendance {
             (identical(other.hash, hash) || other.hash == hash));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, id, sessionId, studentId,
       student, timestamp, status, deviceId, hash);
 
-  /// Create a copy of Attendance
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$AttendanceImplCopyWith<_$AttendanceImpl> get copyWith =>
@@ -323,11 +311,8 @@ abstract class _Attendance implements Attendance {
   String? get deviceId;
   @override
   String? get hash;
-
-  /// Create a copy of Attendance
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$AttendanceImplCopyWith<_$AttendanceImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -343,12 +328,8 @@ mixin _$CheckInRequestModel {
   String? get deviceId => throw _privateConstructorUsedError;
   String? get hash => throw _privateConstructorUsedError;
 
-  /// Serializes this CheckInRequestModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of CheckInRequestModel
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $CheckInRequestModelCopyWith<CheckInRequestModel> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -373,8 +354,6 @@ class _$CheckInRequestModelCopyWithImpl<$Res, $Val extends CheckInRequestModel>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of CheckInRequestModel
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -424,8 +403,6 @@ class __$$CheckInRequestModelImplCopyWithImpl<$Res>
       $Res Function(_$CheckInRequestModelImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of CheckInRequestModel
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -495,14 +472,12 @@ class _$CheckInRequestModelImpl implements _CheckInRequestModel {
             (identical(other.hash, hash) || other.hash == hash));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode =>
       Object.hash(runtimeType, studentId, sessionToken, deviceId, hash);
 
-  /// Create a copy of CheckInRequestModel
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$CheckInRequestModelImplCopyWith<_$CheckInRequestModelImpl> get copyWith =>
@@ -535,11 +510,8 @@ abstract class _CheckInRequestModel implements CheckInRequestModel {
   String? get deviceId;
   @override
   String? get hash;
-
-  /// Create a copy of CheckInRequestModel
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$CheckInRequestModelImplCopyWith<_$CheckInRequestModelImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -555,12 +527,8 @@ mixin _$CheckInResponse {
   Attendance? get attendance => throw _privateConstructorUsedError;
   String? get error => throw _privateConstructorUsedError;
 
-  /// Serializes this CheckInResponse to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-
-  /// Create a copy of CheckInResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   $CheckInResponseCopyWith<CheckInResponse> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -587,8 +555,6 @@ class _$CheckInResponseCopyWithImpl<$Res, $Val extends CheckInResponse>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of CheckInResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -617,8 +583,6 @@ class _$CheckInResponseCopyWithImpl<$Res, $Val extends CheckInResponse>
     ) as $Val);
   }
 
-  /// Create a copy of CheckInResponse
-  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $AttendanceCopyWith<$Res>? get attendance {
@@ -655,8 +619,6 @@ class __$$CheckInResponseImplCopyWithImpl<$Res>
       _$CheckInResponseImpl _value, $Res Function(_$CheckInResponseImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of CheckInResponse
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -721,14 +683,12 @@ class _$CheckInResponseImpl implements _CheckInResponse {
             (identical(other.error, error) || other.error == error));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   int get hashCode =>
       Object.hash(runtimeType, success, message, attendance, error);
 
-  /// Create a copy of CheckInResponse
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$CheckInResponseImplCopyWith<_$CheckInResponseImpl> get copyWith =>
@@ -761,11 +721,8 @@ abstract class _CheckInResponse implements CheckInResponse {
   Attendance? get attendance;
   @override
   String? get error;
-
-  /// Create a copy of CheckInResponse
-  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
+  @JsonKey(ignore: true)
   _$$CheckInResponseImplCopyWith<_$CheckInResponseImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

@@ -2,8 +2,13 @@
 /// جميع Providers مرتبطة بقاعدة البيانات والخدمات الحقيقية
 library;
 
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' as drift;
+
+import '../../core/constants/app_constants.dart';
 import '../../services/database/local_database.dart';
 import '../../services/storage/storage_service.dart';
 import '../../services/encryption/encryption_service.dart';
@@ -617,14 +622,8 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionData?> {
 }
 
 // ============================================
-// استيرادات ضرورية داخل providers
+// Models
 // ============================================
-
-import 'dart:convert';
-import 'dart:io';
-import 'package:drift/drift.dart' as drift;
-import '../../core/constants/app_constants.dart';
-import '../../services/database/local_database.dart' show Course, Section, Department;
 
 /// بيانات الجلسة النشطة
 class ActiveSessionData {

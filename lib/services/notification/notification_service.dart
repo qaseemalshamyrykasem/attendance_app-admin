@@ -76,32 +76,33 @@ class NotificationService {
   }
 
   /// إشعار ببدء جلسة جديدة
-  Future<void> showSessionStartedNotification({
+  Future<void> showSessionStarted({
     required String courseName,
-    required String sectionName,
+    String? sectionName,
   }) async {
     await showNotification(
       id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       title: '🎓 بدأت جلسة جديدة',
-      body: '$courseName - $sectionName',
+      body: '$courseName${sectionName != null ? " - $sectionName" : ""}',
       payload: 'session_started',
     );
   }
 
   /// إشعار بتسجيل حضور جديد
-  Future<void> showCheckInNotification({
+  Future<void> showCheckIn({
     required String studentName,
+    String? courseName,
   }) async {
     await showNotification(
       id: DateTime.now().millisecondsSinceEpoch ~/ 1000 + 1,
       title: '✅ تسجيل حضور',
-      body: 'تم تسجيل حضور: $studentName',
+      body: 'تم تسجيل حضور: $studentName${courseName != null ? " في $courseName" : ""}',
       payload: 'check_in',
     );
   }
 
   /// إشعار بإغلاق جلسة
-  Future<void> showSessionClosedNotification({
+  Future<void> showSessionClosed({
     required String courseName,
     int attendanceCount = 0,
   }) async {

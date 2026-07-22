@@ -38,14 +38,14 @@ class EncryptionService {
   // ============================================
 
   /// إنشاء SHA256 Hash
-  String sha256(String input) {
+  String computeSha256(String input) {
     final bytes = utf8.encode(input);
     final hash = crypto.sha256.convert(bytes);
     return hash.toString();
   }
 
   /// إنشاء MD5 Hash (للاستخدامات البسيطة فقط)
-  String md5(String input) {
+  String computeMd5(String input) {
     final bytes = utf8.encode(input);
     final hash = crypto.md5.convert(bytes);
     return hash.toString();
@@ -55,7 +55,7 @@ class EncryptionService {
   String generateDataHash(Map<String, dynamic> data) {
     final sortedKeys = data.keys.toList()..sort();
     final concatenated = sortedKeys.map((k) => '$k:${data[k]}').join('|');
-    return sha256(concatenated);
+    return computeSha256(concatenated);
   }
 
   /// إنشاء Hash لتسجيل الحضور
@@ -66,7 +66,7 @@ class EncryptionService {
     required String deviceId,
   }) {
     final data = '$studentId|$sessionId|${timestamp.millisecondsSinceEpoch}|$deviceId';
-    return sha256(data);
+    return computeSha256(data);
   }
 
   // ============================================
@@ -131,7 +131,7 @@ class EncryptionService {
     required DateTime date,
   }) {
     final data = '$courseId|$sectionId|${date.millisecondsSinceEpoch}';
-    final hash = sha256(data);
+    final hash = computeSha256(data);
     return '${hash.substring(0, 16)}_${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}';
   }
 
@@ -170,7 +170,7 @@ class EncryptionService {
   String hashPassword(String password) {
     const salt = 'AttendanceAdminSalt2024';
     final saltedPassword = password + salt;
-    return sha256(saltedPassword);
+    return computeSha256(saltedPassword);
   }
 
   /// التحقق من كلمة المرور

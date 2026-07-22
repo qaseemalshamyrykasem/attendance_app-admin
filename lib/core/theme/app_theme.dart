@@ -42,6 +42,7 @@ class AppTheme {
       shadow: AppColorsLight.shadow,
       scrim: AppColorsLight.scrim,
       inverseSurface: AppColorsLight.inverseSurface,
+      inverseOnSurface: AppColorsLight.inverseOnSurface,
       inversePrimary: AppColorsLight.inversePrimary,
     );
 
@@ -76,6 +77,7 @@ class AppTheme {
       shadow: AppColorsDark.shadow,
       scrim: AppColorsDark.scrim,
       inverseSurface: AppColorsDark.inverseSurface,
+      inverseOnSurface: AppColorsDark.inverseOnSurface,
       inversePrimary: AppColorsDark.inversePrimary,
     );
 

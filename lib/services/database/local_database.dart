@@ -297,7 +297,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// الحصول على عدد الطلاب
   Future<int> getStudentsCount() {
-    return students.count().getSingle();
+    return select(students).countAll().getSingle();
   }
 
   /// إضافة طالب جديد
@@ -340,6 +340,11 @@ class AppDatabase extends _$AppDatabase {
   /// تسجيل حضور جديد
   Future<int> insertAttendanceRecord(AttendanceRecordsCompanion record) {
     return into(attendanceRecords).insert(record);
+  }
+
+  /// تحديث سجل حضور
+  Future<bool> updateAttendanceRecord(AttendanceRecord record) {
+    return update(attendanceRecords).replace(record);
   }
 
   /// الحصول على حضور طالب في جميع الجلسات
