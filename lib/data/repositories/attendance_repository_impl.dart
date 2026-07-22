@@ -46,9 +46,9 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       orElse: () => throw Exception('سجل الحضور غير موجود'),
     );
     final updated = record.copyWith(
-      status: attendance.status,
-      deviceId: attendance.deviceId ?? record.deviceId,
-      hash: attendance.hash ?? record.hash,
+      status: drift.Value(attendance.status),
+      deviceId: drift.Value(attendance.deviceId ?? record.deviceId),
+      hash: drift.Value(attendance.hash ?? record.hash),
     );
     await _database.updateAttendanceRecord(updated);
     return attendance;

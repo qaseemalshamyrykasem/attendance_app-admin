@@ -71,14 +71,14 @@ class StudentRepositoryImpl implements StudentRepository {
       throw Exception('الطالب غير موجود');
     }
     final updated = dbStudent.copyWith(
-      name: student.name,
-      studentId: student.studentId,
-      departmentId: student.departmentId ?? dbStudent.departmentId,
-      level: student.level ?? dbStudent.level,
-      sectionId: student.sectionId ?? dbStudent.sectionId,
-      phone: student.phone ?? dbStudent.phone,
-      photo: student.photo ?? dbStudent.photo,
-      updatedAt: DateTime.now(),
+      name: drift.Value(student.name),
+      studentId: drift.Value(student.studentId),
+      departmentId: drift.Value(student.departmentId ?? dbStudent.departmentId),
+      level: drift.Value(student.level ?? dbStudent.level),
+      sectionId: drift.Value(student.sectionId ?? dbStudent.sectionId),
+      phone: drift.Value(student.phone ?? dbStudent.phone),
+      photo: drift.Value(student.photo ?? dbStudent.photo),
+      updatedAt: drift.Value(DateTime.now()),
     );
     await _database.updateStudent(updated);
     return _toEntity(updated);

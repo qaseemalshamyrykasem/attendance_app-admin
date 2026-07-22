@@ -2,7 +2,7 @@
 library;
 
 import 'dart:io';
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:drift/drift.dart' as drift;
@@ -254,7 +254,7 @@ class _BackupCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(DateUtils.formatDate(backup.createdAt), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+            Text(AppDateUtils.formatDate(backup.createdAt), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
             Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(icon: const Icon(Icons.restore, size: 18), tooltip: 'استعادة', onPressed: () {

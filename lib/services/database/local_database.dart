@@ -19,12 +19,12 @@ class Students extends Table {
   TextColumn get id => text().withDefault(const Constant(''))();
   TextColumn get name => text().withLength(min: 2, max: 100)();
   TextColumn get studentId => text().unique()();
-  TextColumn? get departmentId => text().nullable()();
-  IntColumn? get level => integer().nullable()();
-  TextColumn? get sectionId => text().nullable()();
-  TextColumn? get phone => text().nullable()();
-  TextColumn? get photo => text().nullable()();
-  TextColumn? get deviceId => text().nullable()();
+  TextColumn get departmentId => text().nullable()();
+  IntColumn get level => integer().nullable()();
+  TextColumn get sectionId => text().nullable()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get photo => text().nullable()();
+  TextColumn get deviceId => text().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
@@ -43,8 +43,8 @@ class AttendanceRecords extends Table {
       dateTime().withDefault(currentDateAndTime)();
   TextColumn get status =>
       text().withDefault(const Constant('present'))();
-  TextColumn? get deviceId => text().nullable()();
-  TextColumn? get hash => text().nullable()();
+  TextColumn get deviceId => text().nullable()();
+  TextColumn get hash => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -63,14 +63,14 @@ class Sessions extends Table {
   TextColumn get sectionId => text()();
   DateTimeColumn get date => dateTime()();
   DateTimeColumn get startTime => dateTime()();
-  DateTimeColumn? get endTime => dateTime().nullable()();
+  DateTimeColumn get endTime => dateTime().nullable()();
   TextColumn get status =>
       text().withDefault(const Constant('created'))();
-  TextColumn? get ip => text().nullable()();
-  IntColumn? get port => integer().nullable()();
-  TextColumn? get token => text().nullable()();
-  TextColumn? get qrData => text().nullable()();
-  TextColumn? get createdById => text().nullable()();
+  TextColumn get ip => text().nullable()();
+  IntColumn get port => integer().nullable()();
+  TextColumn get token => text().nullable()();
+  TextColumn get qrData => text().nullable()();
+  TextColumn get createdById => text().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
@@ -84,7 +84,7 @@ class Sessions extends Table {
 class Departments extends Table {
   TextColumn get id => text().withDefault(const Constant(''))();
   TextColumn get name => text().withLength(min: 2, max: 100)();
-  TextColumn? get code => text().nullable()();
+  TextColumn get code => text().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
 
@@ -96,8 +96,8 @@ class Departments extends Table {
 class Levels extends Table {
   TextColumn get id => text().withDefault(const Constant(''))();
   TextColumn get name => text()();
-  TextColumn? get code => text().nullable()();
-  IntColumn? get order => integer().nullable()();
+  TextColumn get code => text().nullable()();
+  IntColumn get order => integer().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
 
@@ -109,8 +109,8 @@ class Levels extends Table {
 class Sections extends Table {
   TextColumn get id => text().withDefault(const Constant(''))();
   TextColumn get name => text().withLength(min: 2, max: 100)();
-  TextColumn? get levelId => text().nullable()();
-  TextColumn? get departmentId => text().nullable()();
+  TextColumn get levelId => text().nullable()();
+  TextColumn get departmentId => text().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
 
@@ -122,8 +122,8 @@ class Sections extends Table {
 class Courses extends Table {
   TextColumn get id => text().withDefault(const Constant(''))();
   TextColumn get name => text().withLength(min: 2, max: 100)();
-  TextColumn? get code => text().nullable()();
-  TextColumn? get sectionId => text().nullable()();
+  TextColumn get code => text().nullable()();
+  TextColumn get sectionId => text().nullable()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
 
@@ -149,9 +149,9 @@ class Logs extends Table {
   TextColumn get id => text().withDefault(const Constant(''))();
   TextColumn get action => text()();
   TextColumn get entityType => text()();
-  TextColumn? get entityId => text().nullable()();
-  TextColumn? get details => text().nullable()();
-  TextColumn? get userId => text().nullable()();
+  TextColumn get entityId => text().nullable()();
+  TextColumn get details => text().nullable()();
+  TextColumn get userId => text().nullable()();
   DateTimeColumn get timestamp =>
       dateTime().withDefault(currentDateAndTime)();
 
@@ -167,7 +167,7 @@ class Backups extends Table {
   IntColumn get recordsCount => integer()();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
-  TextColumn? get description => text().nullable()();
+  TextColumn get description => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -297,7 +297,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// الحصول على عدد الطلاب
   Future<int> getStudentsCount() {
-    return select(students).countAll().getSingle();
+    return select(students).get().then((l) => l.length);
   }
 
   /// إضافة طالب جديد

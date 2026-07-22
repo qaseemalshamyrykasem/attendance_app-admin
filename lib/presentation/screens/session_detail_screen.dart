@@ -1,7 +1,7 @@
 /// شاشة تفاصيل الجلسة — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/di/providers.dart';
@@ -162,7 +162,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${session.sectionName ?? session.sectionId} • ${DateUtils.formatDate(session.date)}',
+              '${session.sectionName ?? session.sectionId} • ${AppDateUtils.formatDate(session.date)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -175,10 +175,10 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
               _buildInfoRow(Icons.dns_outlined, 'الخادم',
                   '${session.ip}:${session.port ?? 8080}'),
             _buildInfoRow(Icons.access_time_outlined, 'بدء الجلسة',
-                DateUtils.formatTime(session.startTime, pattern: 'HH:mm')),
+                AppDateUtils.formatTime(session.startTime, pattern: 'HH:mm')),
             if (session.endTime != null)
               _buildInfoRow(Icons.access_time_filled_rounded, 'نهاية الجلسة',
-                  DateUtils.formatTime(session.endTime!, pattern: 'HH:mm')),
+                  AppDateUtils.formatTime(session.endTime!, pattern: 'HH:mm')),
           ],
         ),
       ),
@@ -360,7 +360,7 @@ class _AttendanceRecordCard extends StatelessWidget {
         ),
         title: Text(record.student?.name ?? record.studentId),
         subtitle: Text(
-            '${record.studentId} • ${DateUtils.formatTime(record.timestamp, pattern: 'HH:mm')}'),
+            '${record.studentId} • ${AppDateUtils.formatTime(record.timestamp, pattern: 'HH:mm')}'),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(

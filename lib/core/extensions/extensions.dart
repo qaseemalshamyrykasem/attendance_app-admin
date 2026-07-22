@@ -164,7 +164,7 @@ extension DateTimeExtension on DateTime {
     try {
       // استخدام DateFormat من intl package
       // هذا يتطلب استيراد intl
-      return toString(); // بديل مؤقت - يفضل استخدام DateUtils.formatDate
+      return toString(); // بديل مؤقت - يفضل استخدام AppDateUtils.formatDate
     } catch (e) {
       return toIso8601String().split('T').first;
     }

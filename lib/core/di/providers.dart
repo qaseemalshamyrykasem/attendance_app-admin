@@ -515,7 +515,7 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionData?> {
 
       // التحقق من عدم تسجيل الحضور مسبقاً
       final alreadyCheckedIn = await _database.isStudentCheckedIn(
-        request.sessionToken ?? _httpServer?.currentSessionId ?? '',
+        request.sessionToken.isNotEmpty ? request.sessionToken : (_httpServer?.currentSessionId ?? ''),
         request.studentId,
       );
       if (alreadyCheckedIn) {

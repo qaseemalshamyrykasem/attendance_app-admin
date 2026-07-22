@@ -1,7 +1,7 @@
 /// شاشة إدارة الأقسام — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../core/di/providers.dart';
@@ -235,7 +235,7 @@ class _DepartmentCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              DateUtils.formatDate(department.createdAt),
+              AppDateUtils.formatDate(department.createdAt),
               style: TextStyle(fontSize: 11, color: Colors.grey[600]),
             ),
           ],

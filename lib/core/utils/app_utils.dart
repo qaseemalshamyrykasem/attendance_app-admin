@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 
 /// أدوات التاريخ والوقت
-/// تم تغيير الاسم إلى DateUtils واستخدامه مع hide DateUtils من Flutter
-class DateUtils {
-  DateUtils._();
+/// أدوات التاريخ والوقت
+class AppDateUtils {
+  AppDateUtils._();
 
   /// تنسيق التاريخ
   static String formatDate(DateTime date, {String pattern = 'yyyy-MM-dd'}) {

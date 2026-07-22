@@ -186,7 +186,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              '${data.sectionId} • ${DateUtils.formatDate(data.date)}',
+              '${data.sectionId} • ${AppDateUtils.formatDate(data.date)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -529,7 +529,7 @@ class _RecentCheckInCard extends StatelessWidget {
         title: Text(checkIn.studentName),
         subtitle: Text(checkIn.studentId),
         trailing: Text(
-          DateUtils.formatTime(checkIn.time, pattern: 'HH:mm'),
+          AppDateUtils.formatTime(checkIn.time, pattern: 'HH:mm'),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
       ),

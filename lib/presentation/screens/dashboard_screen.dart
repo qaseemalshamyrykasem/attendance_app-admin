@@ -1,7 +1,7 @@
 /// شاشة لوحة التحكم (Dashboard) — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/di/providers.dart';
@@ -460,7 +460,7 @@ class _SessionCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${session.sectionName ?? session.sectionId} • ${DateUtils.formatDate(session.date)}',
+                      '${session.sectionName ?? session.sectionId} • ${AppDateUtils.formatDate(session.date)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

@@ -1,7 +1,7 @@
 /// شاشة إدارة المقررات — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../core/di/providers.dart';

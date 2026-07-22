@@ -62,17 +62,17 @@ class SessionRepositoryImpl implements SessionRepository {
       throw Exception('الجلسة غير موجودة');
     }
     final updated = dbSession.copyWith(
-      courseId: session.courseId,
-      sectionId: session.sectionId,
-      date: session.date,
-      startTime: session.startTime,
-      endTime: session.endTime ?? dbSession.endTime,
-      status: session.status,
-      ip: session.ip ?? dbSession.ip,
-      port: session.port ?? dbSession.port,
-      token: session.token ?? dbSession.token,
-      qrData: session.qrData ?? dbSession.qrData,
-      updatedAt: DateTime.now(),
+      courseId: drift.Value(session.courseId),
+      sectionId: drift.Value(session.sectionId),
+      date: drift.Value(session.date),
+      startTime: drift.Value(session.startTime),
+      endTime: drift.Value(session.endTime ?? dbSession.endTime),
+      status: drift.Value(session.status),
+      ip: drift.Value(session.ip ?? dbSession.ip),
+      port: drift.Value(session.port ?? dbSession.port),
+      token: drift.Value(session.token ?? dbSession.token),
+      qrData: drift.Value(session.qrData ?? dbSession.qrData),
+      updatedAt: drift.Value(DateTime.now()),
     );
     await _database.updateSession(updated);
     return _toEntity(updated);
@@ -85,9 +85,9 @@ class SessionRepositoryImpl implements SessionRepository {
       throw Exception('الجلسة غير موجودة');
     }
     final closed = session.copyWith(
-      status: 'closed',
-      endTime: DateTime.now(),
-      updatedAt: DateTime.now(),
+      status: drift.Value('closed'),
+      endTime: drift.Value(DateTime.now()),
+      updatedAt: drift.Value(DateTime.now()),
     );
     await _database.updateSession(closed);
     return _toEntity(closed);

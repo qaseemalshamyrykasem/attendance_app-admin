@@ -1,7 +1,7 @@
 /// شاشة التقارير — حقيقية مع Riverpod (بيانات من DB)
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/di/providers.dart';
@@ -190,7 +190,7 @@ class _AttendanceTab extends ConsumerWidget {
             return Column(
               children: sessions.take(10).map((session) => _DayAttendanceCard(
                 session: session,
-              ).build(context)).toList(),
+              )).toList(),
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -233,7 +233,7 @@ class _DayAttendanceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isToday = DateUtils.isToday(session.date);
+    final isToday = AppDateUtils.isToday(session.date);
     final statsAsync = ref.watch(sessionAttendanceStatsProvider(session.id));
 
     return Card(
@@ -257,7 +257,7 @@ class _DayAttendanceCard extends ConsumerWidget {
             ],
           ),
         ),
-        title: Text(isToday ? 'اليوم' : DateUtils.formatDate(session.date)),
+        title: Text(isToday ? 'اليوم' : AppDateUtils.formatDate(session.date)),
         subtitle: statsAsync.when(
           data: (stats) => Text('${stats.presentCount} حاضر • ${stats.absentCount} غائب • ${stats.lateCount} متأخر'),
           loading: () => const Text('جارٍ التحميل...'),

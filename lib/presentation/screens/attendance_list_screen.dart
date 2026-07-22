@@ -1,7 +1,7 @@
 /// شاشة قائمة الحضور — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/di/providers.dart';
 import '../../core/utils/app_utils.dart';
@@ -172,7 +172,7 @@ class _AttendanceRecordItem extends StatelessWidget {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
             ),
             Text(
-              DateUtils.formatTime(record.timestamp, pattern: 'HH:mm'),
+              AppDateUtils.formatTime(record.timestamp, pattern: 'HH:mm'),
               style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             ),
           ],
