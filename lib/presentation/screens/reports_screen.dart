@@ -304,7 +304,7 @@ class _CoursesTab extends ConsumerWidget {
             return Column(
               children: courses.map((course) => _CourseReportCard(
                 course: course,
-              ).build(context, ref)).toList(),
+              )).toList(),
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
