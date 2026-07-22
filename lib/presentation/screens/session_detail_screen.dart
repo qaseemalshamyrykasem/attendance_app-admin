@@ -1,7 +1,7 @@
 /// شاشة تفاصيل الجلسة — حقيقية مع Riverpod
 library;
 
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/di/providers.dart';
@@ -15,15 +15,18 @@ class SessionDetailScreen extends ConsumerStatefulWidget {
   const SessionDetailScreen({super.key, required this.sessionId});
 
   @override
-  ConsumerState<SessionDetailScreen> createState() => _SessionDetailScreenState();
+  ConsumerState<SessionDetailScreen> createState() =>
+      _SessionDetailScreenState();
 }
 
 class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionAsync = ref.watch(sessionDetailProvider(widget.sessionId));
-    final statsAsync = ref.watch(sessionAttendanceStatsProvider(widget.sessionId));
-    final attendanceAsync = ref.watch(sessionAttendanceProvider(widget.sessionId));
+    final statsAsync =
+        ref.watch(sessionAttendanceStatsProvider(widget.sessionId));
+    final attendanceAsync =
+        ref.watch(sessionAttendanceProvider(widget.sessionId));
 
     return Scaffold(
       appBar: AppBar(
@@ -75,30 +78,26 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _buildSessionInfoCard(session),
-
                 const SizedBox(height: 16),
-
                 statsAsync.when(
                   data: (stats) => _buildAttendanceStatsCard(stats),
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => const SizedBox.shrink(),
                 ),
-
                 const SizedBox(height: 24),
-
                 _buildAttendanceListHeader(attendanceAsync),
-
                 const SizedBox(height: 12),
-
                 attendanceAsync.when(
                   data: (records) => Column(
-                    children: records.map((record) =>
-                        _AttendanceRecordCard(record: record)).toList(),
+                    children: records
+                        .map((record) => _AttendanceRecordCard(record: record))
+                        .toList(),
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Center(child: Text('خطأ: $e')),
                 ),
-
                 const SizedBox(height: 80),
               ],
             ),
@@ -145,7 +144,8 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -164,15 +164,21 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
             Text(
               '${session.sectionName ?? session.sectionId} • ${DateUtils.formatDate(session.date)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7),
                   ),
             ),
             const Divider(height: 24),
             if (session.ip != null)
-              _buildInfoRow(Icons.dns_outlined, 'الخادم', '${session.ip}:${session.port ?? 8080}'),
-            _buildInfoRow(Icons.access_time_outlined, 'بدء الجلسة', DateUtils.formatTime(session.startTime, pattern: 'HH:mm')),
+              _buildInfoRow(Icons.dns_outlined, 'الخادم',
+                  '${session.ip}:${session.port ?? 8080}'),
+            _buildInfoRow(Icons.access_time_outlined, 'بدء الجلسة',
+                DateUtils.formatTime(session.startTime, pattern: 'HH:mm')),
             if (session.endTime != null)
-              _buildInfoRow(Icons.access_time_filled_rounded, 'نهاية الجلسة', DateUtils.formatTime(session.endTime!, pattern: 'HH:mm')),
+              _buildInfoRow(Icons.access_time_filled_rounded, 'نهاية الجلسة',
+                  DateUtils.formatTime(session.endTime!, pattern: 'HH:mm')),
           ],
         ),
       ),
@@ -193,7 +199,8 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                 color: Colors.green,
               ),
             ),
-            Container(width: 1, height: 40, color: Theme.of(context).dividerColor),
+            Container(
+                width: 1, height: 40, color: Theme.of(context).dividerColor),
             Expanded(
               child: _StatItem(
                 label: 'متأخر',
@@ -201,7 +208,8 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                 color: Colors.orange,
               ),
             ),
-            Container(width: 1, height: 40, color: Theme.of(context).dividerColor),
+            Container(
+                width: 1, height: 40, color: Theme.of(context).dividerColor),
             Expanded(
               child: _StatItem(
                 label: 'غائب',
@@ -224,13 +232,18 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
           const SizedBox(width: 8),
           Text('$label:', style: Theme.of(context).textTheme.bodySmall),
           const Spacer(),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+          Text(value,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 
-  Widget _buildAttendanceListHeader(AsyncValue<List<AttendanceEntity>> attendanceAsync) {
+  Widget _buildAttendanceListHeader(
+      AsyncValue<List<AttendanceEntity>> attendanceAsync) {
     final count = attendanceAsync.when(
       data: (records) => records.length,
       loading: () => 0,
@@ -242,7 +255,10 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
       children: [
         Text(
           'سجل الحضور ($count)',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         TextButton.icon(
           onPressed: () => context.push('/attendance/${widget.sessionId}'),
@@ -343,7 +359,8 @@ class _AttendanceRecordCard extends StatelessWidget {
           child: Icon(statusIcon, color: statusColor, size: 18),
         ),
         title: Text(record.student?.name ?? record.studentId),
-        subtitle: Text('${record.studentId} • ${DateUtils.formatTime(record.timestamp, pattern: 'HH:mm')}'),
+        subtitle: Text(
+            '${record.studentId} • ${DateUtils.formatTime(record.timestamp, pattern: 'HH:mm')}'),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -352,7 +369,8 @@ class _AttendanceRecordCard extends StatelessWidget {
           ),
           child: Text(
             statusText,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
           ),
         ),
       ),

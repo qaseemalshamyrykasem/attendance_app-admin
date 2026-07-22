@@ -2,7 +2,7 @@
 library;
 
 import 'dart:async';
-import 'package:flutter/material.dart' hide DateUtils;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -15,7 +15,8 @@ class ActiveSessionScreen extends ConsumerStatefulWidget {
   const ActiveSessionScreen({super.key});
 
   @override
-  ConsumerState<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
+  ConsumerState<ActiveSessionScreen> createState() =>
+      _ActiveSessionScreenState();
 }
 
 class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
@@ -47,11 +48,13 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
       _checkInSubscription = httpServer.checkInStream.listen((event) {
         if (!mounted) return;
         setState(() {
-          _recentCheckIns.insert(0, _CheckInEvent(
-            studentId: event.studentId,
-            studentName: event.studentId, // Name will be resolved from DB
-            time: event.timestamp,
-          ));
+          _recentCheckIns.insert(
+              0,
+              _CheckInEvent(
+                studentId: event.studentId,
+                studentName: event.studentId, // Name will be resolved from DB
+                time: event.timestamp,
+              ));
           if (_recentCheckIns.length > 20) {
             _recentCheckIns.removeLast();
           }
@@ -75,9 +78,11 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey[400]),
+              Icon(Icons.event_busy_outlined,
+                  size: 64, color: Colors.grey[400]),
               const SizedBox(height: 16),
-              Text('لا توجد جلسة نشطة', style: TextStyle(color: Colors.grey[600])),
+              Text('لا توجد جلسة نشطة',
+                  style: TextStyle(color: Colors.grey[600])),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: () => context.go('/dashboard/session/create'),
@@ -99,9 +104,11 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
             builder: (context, child) {
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1 + (_pulseController.value * 0.1)),
+                  color: Colors.green
+                      .withValues(alpha: 0.1 + (_pulseController.value * 0.1)),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -118,7 +125,8 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
                     const SizedBox(width: 6),
                     const Text(
                       'مباشر',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: Colors.green),
                     ),
                   ],
                 ),
@@ -171,19 +179,26 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
           children: [
             Text(
               data.courseId,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
               '${data.sectionId} • ${DateUtils.formatDate(data.date)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7),
                   ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.dns, size: 18, color: Theme.of(context).colorScheme.primary),
+                Icon(Icons.dns,
+                    size: 18, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   '${data.ip}:${data.port}',
@@ -196,7 +211,8 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
                   icon: const Icon(Icons.copy_outlined, size: 18),
                   onPressed: () {
                     // Copy IP:port to clipboard
-                    UiUtils.showSnackBar(context, 'تم نسخ العنوان: ${data.ip}:${data.port}');
+                    UiUtils.showSnackBar(
+                        context, 'تم نسخ العنوان: ${data.ip}:${data.port}');
                   },
                   tooltip: 'نسخ العنوان',
                 ),
@@ -217,7 +233,10 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
           children: [
             Text(
               'امسح رمز QR للتسجيل',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             // Real QR Code using qr_flutter
@@ -327,7 +346,10 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
       children: [
         Text(
           'آخر التسجيلات',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         if (_recentCheckIns.isEmpty)
@@ -349,7 +371,8 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
             ),
           )
         else
-          ..._recentCheckIns.map((checkIn) => _RecentCheckInCard(checkIn: checkIn)),
+          ..._recentCheckIns
+              .map((checkIn) => _RecentCheckInCard(checkIn: checkIn)),
       ],
     );
   }
@@ -357,7 +380,8 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
   Widget _buildCloseButton() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 8),
+      padding: EdgeInsets.fromLTRB(
+          16, 8, 16, MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
@@ -386,7 +410,8 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إغلاق الجلسة'),
-        content: const Text('هل أنت متأكد من إغلاق هذه الجلسة؟\nلن يتمكن الطلاب من تسجيل الحضور بعد الإغلاق.'),
+        content: const Text(
+            'هل أنت متأكد من إغلاق هذه الجلسة؟\nلن يتمكن الطلاب من تسجيل الحضور بعد الإغلاق.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -470,10 +495,11 @@ class _LiveStatCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
-          Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              )),
+          Text(value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  )),
           const SizedBox(height: 4),
           Text(title, style: Theme.of(context).textTheme.bodySmall),
         ],
